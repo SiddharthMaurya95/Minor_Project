@@ -494,3 +494,4 @@ plt.savefig('/kaggle/working/medmnist_benchmark_plot.png')
 ### Q5: *"Why did you benchmark against ConvNeXt-Femto rather than only ResNet and VGG?"*
 > **Answer:**  
 > *"Sir, ResNet (2015) and VGG (2014) are legacy architectures designed a decade ago. To demonstrate that PhySSL-Net's performance gains stem from genuine physics-informed inductive biases rather than merely comparing against outdated designs, we included ConvNeXt-Femto (CVPR 2022). ConvNeXt modernizes pure CNNs with depthwise separable $7 \times 7$ convolutions, inverted bottlenecks, and LayerScale. By proving that PhySSL-Net (46.3k parameters) outperforms ConvNeXt-Femto (109.8k parameters) while using 58% fewer parameters and running 2.25× faster, our claims of state-of-the-art parameter efficiency are fully validated against modern baselines."*
+
