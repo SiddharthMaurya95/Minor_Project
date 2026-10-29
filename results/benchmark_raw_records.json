@@ -1,0 +1,1094 @@
+{
+  "physsl_net_ssl": [
+    {
+      "accuracy": 0.7980769230769231,
+      "roc_auc": 0.9635382423843962,
+      "precision": 0.7568093385214008,
+      "recall": 0.9974358974358974,
+      "sensitivity": 0.9974358974358974,
+      "specificity": 0.4658119658119658,
+      "f1": 0.8606194690265486,
+      "confusion_matrix": [
+        [
+          109,
+          125
+        ],
+        [
+          1,
+          389
+        ]
+      ],
+      "tp": 389,
+      "tn": 109,
+      "fp": 125,
+      "fn": 1,
+      "model_name": "physsl_net",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 42,
+      "label_fraction": 1.0,
+      "num_parameters": 46294,
+      "latency_ms_per_sample": 0.197,
+      "throughput_fps": 5070.3,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/physsl_net_pneumoniamnist_frac100_seed42_best.pth",
+      "model_key": "physsl_net_ssl"
+    },
+    {
+      "accuracy": 0.8509615384615384,
+      "roc_auc": 0.9485590620206005,
+      "precision": 0.8113207547169812,
+      "recall": 0.9923076923076923,
+      "sensitivity": 0.9923076923076923,
+      "specificity": 0.6153846153846154,
+      "f1": 0.8927335640138409,
+      "confusion_matrix": [
+        [
+          144,
+          90
+        ],
+        [
+          3,
+          387
+        ]
+      ],
+      "tp": 387,
+      "tn": 144,
+      "fp": 90,
+      "fn": 3,
+      "model_name": "physsl_net",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 123,
+      "label_fraction": 1.0,
+      "num_parameters": 46294,
+      "latency_ms_per_sample": 0.152,
+      "throughput_fps": 6589.8,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/physsl_net_pneumoniamnist_frac100_seed123_best.pth",
+      "model_key": "physsl_net_ssl"
+    },
+    {
+      "accuracy": 0.7932692307692307,
+      "roc_auc": 0.963379355687048,
+      "precision": 0.7514450867052023,
+      "recall": 1.0,
+      "sensitivity": 1.0,
+      "specificity": 0.44871794871794873,
+      "f1": 0.858085808580858,
+      "confusion_matrix": [
+        [
+          105,
+          129
+        ],
+        [
+          0,
+          390
+        ]
+      ],
+      "tp": 390,
+      "tn": 105,
+      "fp": 129,
+      "fn": 0,
+      "model_name": "physsl_net",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 456,
+      "label_fraction": 1.0,
+      "num_parameters": 46294,
+      "latency_ms_per_sample": 0.143,
+      "throughput_fps": 6992.6,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/physsl_net_pneumoniamnist_frac100_seed456_best.pth",
+      "model_key": "physsl_net_ssl"
+    },
+    {
+      "accuracy": 0.9038461538461539,
+      "roc_auc": 0.9675980714442253,
+      "precision": 0.8909952606635071,
+      "recall": 0.9641025641025641,
+      "sensitivity": 0.9641025641025641,
+      "specificity": 0.8034188034188035,
+      "f1": 0.9261083743842364,
+      "confusion_matrix": [
+        [
+          188,
+          46
+        ],
+        [
+          14,
+          376
+        ]
+      ],
+      "tp": 376,
+      "tn": 188,
+      "fp": 46,
+      "fn": 14,
+      "model_name": "physsl_net",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 789,
+      "label_fraction": 1.0,
+      "num_parameters": 46294,
+      "latency_ms_per_sample": 0.13,
+      "throughput_fps": 7671.0,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/physsl_net_pneumoniamnist_frac100_seed789_best.pth",
+      "model_key": "physsl_net_ssl"
+    },
+    {
+      "accuracy": 0.8477564102564102,
+      "roc_auc": 0.9446416831032215,
+      "precision": 0.8092243186582809,
+      "recall": 0.9897435897435898,
+      "sensitivity": 0.9897435897435898,
+      "specificity": 0.6111111111111112,
+      "f1": 0.8904267589388697,
+      "confusion_matrix": [
+        [
+          143,
+          91
+        ],
+        [
+          4,
+          386
+        ]
+      ],
+      "tp": 386,
+      "tn": 143,
+      "fp": 91,
+      "fn": 4,
+      "model_name": "physsl_net",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 999,
+      "label_fraction": 1.0,
+      "num_parameters": 46294,
+      "latency_ms_per_sample": 0.123,
+      "throughput_fps": 8137.5,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/physsl_net_pneumoniamnist_frac100_seed999_best.pth",
+      "model_key": "physsl_net_ssl"
+    }
+  ],
+  "physsl_net_scratch": [
+    {
+      "accuracy": 0.7980769230769231,
+      "roc_auc": 0.9635382423843962,
+      "precision": 0.7568093385214008,
+      "recall": 0.9974358974358974,
+      "sensitivity": 0.9974358974358974,
+      "specificity": 0.4658119658119658,
+      "f1": 0.8606194690265486,
+      "confusion_matrix": [
+        [
+          109,
+          125
+        ],
+        [
+          1,
+          389
+        ]
+      ],
+      "tp": 389,
+      "tn": 109,
+      "fp": 125,
+      "fn": 1,
+      "model_name": "physsl_net",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 42,
+      "label_fraction": 1.0,
+      "num_parameters": 46294,
+      "latency_ms_per_sample": 0.125,
+      "throughput_fps": 7999.0,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/physsl_net_pneumoniamnist_frac100_seed42_best.pth",
+      "model_key": "physsl_net_scratch"
+    },
+    {
+      "accuracy": 0.8509615384615384,
+      "roc_auc": 0.9485590620206005,
+      "precision": 0.8113207547169812,
+      "recall": 0.9923076923076923,
+      "sensitivity": 0.9923076923076923,
+      "specificity": 0.6153846153846154,
+      "f1": 0.8927335640138409,
+      "confusion_matrix": [
+        [
+          144,
+          90
+        ],
+        [
+          3,
+          387
+        ]
+      ],
+      "tp": 387,
+      "tn": 144,
+      "fp": 90,
+      "fn": 3,
+      "model_name": "physsl_net",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 123,
+      "label_fraction": 1.0,
+      "num_parameters": 46294,
+      "latency_ms_per_sample": 0.124,
+      "throughput_fps": 8087.4,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/physsl_net_pneumoniamnist_frac100_seed123_best.pth",
+      "model_key": "physsl_net_scratch"
+    },
+    {
+      "accuracy": 0.7932692307692307,
+      "roc_auc": 0.963379355687048,
+      "precision": 0.7514450867052023,
+      "recall": 1.0,
+      "sensitivity": 1.0,
+      "specificity": 0.44871794871794873,
+      "f1": 0.858085808580858,
+      "confusion_matrix": [
+        [
+          105,
+          129
+        ],
+        [
+          0,
+          390
+        ]
+      ],
+      "tp": 390,
+      "tn": 105,
+      "fp": 129,
+      "fn": 0,
+      "model_name": "physsl_net",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 456,
+      "label_fraction": 1.0,
+      "num_parameters": 46294,
+      "latency_ms_per_sample": 0.128,
+      "throughput_fps": 7783.7,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/physsl_net_pneumoniamnist_frac100_seed456_best.pth",
+      "model_key": "physsl_net_scratch"
+    },
+    {
+      "accuracy": 0.9038461538461539,
+      "roc_auc": 0.9675980714442253,
+      "precision": 0.8909952606635071,
+      "recall": 0.9641025641025641,
+      "sensitivity": 0.9641025641025641,
+      "specificity": 0.8034188034188035,
+      "f1": 0.9261083743842364,
+      "confusion_matrix": [
+        [
+          188,
+          46
+        ],
+        [
+          14,
+          376
+        ]
+      ],
+      "tp": 376,
+      "tn": 188,
+      "fp": 46,
+      "fn": 14,
+      "model_name": "physsl_net",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 789,
+      "label_fraction": 1.0,
+      "num_parameters": 46294,
+      "latency_ms_per_sample": 0.122,
+      "throughput_fps": 8185.3,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/physsl_net_pneumoniamnist_frac100_seed789_best.pth",
+      "model_key": "physsl_net_scratch"
+    },
+    {
+      "accuracy": 0.8477564102564102,
+      "roc_auc": 0.9446416831032215,
+      "precision": 0.8092243186582809,
+      "recall": 0.9897435897435898,
+      "sensitivity": 0.9897435897435898,
+      "specificity": 0.6111111111111112,
+      "f1": 0.8904267589388697,
+      "confusion_matrix": [
+        [
+          143,
+          91
+        ],
+        [
+          4,
+          386
+        ]
+      ],
+      "tp": 386,
+      "tn": 143,
+      "fp": 91,
+      "fn": 4,
+      "model_name": "physsl_net",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 999,
+      "label_fraction": 1.0,
+      "num_parameters": 46294,
+      "latency_ms_per_sample": 0.123,
+      "throughput_fps": 8147.6,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/physsl_net_pneumoniamnist_frac100_seed999_best.pth",
+      "model_key": "physsl_net_scratch"
+    }
+  ],
+  "c_mixer": [
+    {
+      "accuracy": 0.8910256410256411,
+      "roc_auc": 0.9380232303309226,
+      "precision": 0.8709677419354839,
+      "recall": 0.9692307692307692,
+      "sensitivity": 0.9692307692307692,
+      "specificity": 0.7606837606837606,
+      "f1": 0.9174757281553398,
+      "confusion_matrix": [
+        [
+          178,
+          56
+        ],
+        [
+          12,
+          378
+        ]
+      ],
+      "tp": 378,
+      "tn": 178,
+      "fp": 56,
+      "fn": 12,
+      "model_name": "c_mixer",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 42,
+      "label_fraction": 1.0,
+      "num_parameters": 277156,
+      "latency_ms_per_sample": 0.258,
+      "throughput_fps": 3875.0,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/c_mixer_pneumoniamnist_frac100_seed42_best.pth",
+      "model_key": "c_mixer"
+    },
+    {
+      "accuracy": 0.8910256410256411,
+      "roc_auc": 0.9382862152092922,
+      "precision": 0.8642533936651584,
+      "recall": 0.9794871794871794,
+      "sensitivity": 0.9794871794871794,
+      "specificity": 0.7435897435897436,
+      "f1": 0.9182692307692307,
+      "confusion_matrix": [
+        [
+          174,
+          60
+        ],
+        [
+          8,
+          382
+        ]
+      ],
+      "tp": 382,
+      "tn": 174,
+      "fp": 60,
+      "fn": 8,
+      "model_name": "c_mixer",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 123,
+      "label_fraction": 1.0,
+      "num_parameters": 277156,
+      "latency_ms_per_sample": 0.23,
+      "throughput_fps": 4341.0,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/c_mixer_pneumoniamnist_frac100_seed123_best.pth",
+      "model_key": "c_mixer"
+    },
+    {
+      "accuracy": 0.8717948717948718,
+      "roc_auc": 0.9330703484549638,
+      "precision": 0.8369565217391305,
+      "recall": 0.9871794871794872,
+      "sensitivity": 0.9871794871794872,
+      "specificity": 0.6794871794871795,
+      "f1": 0.9058823529411765,
+      "confusion_matrix": [
+        [
+          159,
+          75
+        ],
+        [
+          5,
+          385
+        ]
+      ],
+      "tp": 385,
+      "tn": 159,
+      "fp": 75,
+      "fn": 5,
+      "model_name": "c_mixer",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 456,
+      "label_fraction": 1.0,
+      "num_parameters": 277156,
+      "latency_ms_per_sample": 0.238,
+      "throughput_fps": 4196.3,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/c_mixer_pneumoniamnist_frac100_seed456_best.pth",
+      "model_key": "c_mixer"
+    },
+    {
+      "accuracy": 0.8798076923076923,
+      "roc_auc": 0.9436664475126014,
+      "precision": 0.8492239467849224,
+      "recall": 0.982051282051282,
+      "sensitivity": 0.982051282051282,
+      "specificity": 0.7094017094017094,
+      "f1": 0.9108204518430439,
+      "confusion_matrix": [
+        [
+          166,
+          68
+        ],
+        [
+          7,
+          383
+        ]
+      ],
+      "tp": 383,
+      "tn": 166,
+      "fp": 68,
+      "fn": 7,
+      "model_name": "c_mixer",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 789,
+      "label_fraction": 1.0,
+      "num_parameters": 277156,
+      "latency_ms_per_sample": 0.234,
+      "throughput_fps": 4273.3,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/c_mixer_pneumoniamnist_frac100_seed789_best.pth",
+      "model_key": "c_mixer"
+    },
+    {
+      "accuracy": 0.8926282051282052,
+      "roc_auc": 0.9397983782599167,
+      "precision": 0.871264367816092,
+      "recall": 0.9717948717948718,
+      "sensitivity": 0.9717948717948718,
+      "specificity": 0.7606837606837606,
+      "f1": 0.9187878787878788,
+      "confusion_matrix": [
+        [
+          178,
+          56
+        ],
+        [
+          11,
+          379
+        ]
+      ],
+      "tp": 379,
+      "tn": 178,
+      "fp": 56,
+      "fn": 11,
+      "model_name": "c_mixer",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 999,
+      "label_fraction": 1.0,
+      "num_parameters": 277156,
+      "latency_ms_per_sample": 0.227,
+      "throughput_fps": 4413.5,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/c_mixer_pneumoniamnist_frac100_seed999_best.pth",
+      "model_key": "c_mixer"
+    }
+  ],
+  "vanilla_cnn": [
+    {
+      "accuracy": 0.8621794871794872,
+      "roc_auc": 0.9724030243261013,
+      "precision": 0.819327731092437,
+      "recall": 1.0,
+      "sensitivity": 1.0,
+      "specificity": 0.6324786324786325,
+      "f1": 0.9006928406466512,
+      "confusion_matrix": [
+        [
+          148,
+          86
+        ],
+        [
+          0,
+          390
+        ]
+      ],
+      "tp": 390,
+      "tn": 148,
+      "fp": 86,
+      "fn": 0,
+      "model_name": "vanilla_cnn",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 42,
+      "label_fraction": 1.0,
+      "num_parameters": 65314,
+      "latency_ms_per_sample": 0.153,
+      "throughput_fps": 6525.9,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/vanilla_cnn_pneumoniamnist_frac100_seed42_best.pth",
+      "model_key": "vanilla_cnn"
+    },
+    {
+      "accuracy": 0.8766025641025641,
+      "roc_auc": 0.9734933158010082,
+      "precision": 0.838012958963283,
+      "recall": 0.9948717948717949,
+      "sensitivity": 0.9948717948717949,
+      "specificity": 0.6794871794871795,
+      "f1": 0.9097303634232122,
+      "confusion_matrix": [
+        [
+          159,
+          75
+        ],
+        [
+          2,
+          388
+        ]
+      ],
+      "tp": 388,
+      "tn": 159,
+      "fp": 75,
+      "fn": 2,
+      "model_name": "vanilla_cnn",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 123,
+      "label_fraction": 1.0,
+      "num_parameters": 65314,
+      "latency_ms_per_sample": 0.103,
+      "throughput_fps": 9699.0,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/vanilla_cnn_pneumoniamnist_frac100_seed123_best.pth",
+      "model_key": "vanilla_cnn"
+    },
+    {
+      "accuracy": 0.7884615384615384,
+      "roc_auc": 0.9742000876616261,
+      "precision": 0.7471264367816092,
+      "recall": 1.0,
+      "sensitivity": 1.0,
+      "specificity": 0.4358974358974359,
+      "f1": 0.8552631578947368,
+      "confusion_matrix": [
+        [
+          102,
+          132
+        ],
+        [
+          0,
+          390
+        ]
+      ],
+      "tp": 390,
+      "tn": 102,
+      "fp": 132,
+      "fn": 0,
+      "model_name": "vanilla_cnn",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 456,
+      "label_fraction": 1.0,
+      "num_parameters": 65314,
+      "latency_ms_per_sample": 0.106,
+      "throughput_fps": 9410.6,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/vanilla_cnn_pneumoniamnist_frac100_seed456_best.pth",
+      "model_key": "vanilla_cnn"
+    },
+    {
+      "accuracy": 0.8381410256410257,
+      "roc_auc": 0.9716305062458909,
+      "precision": 0.7955010224948875,
+      "recall": 0.9974358974358974,
+      "sensitivity": 0.9974358974358974,
+      "specificity": 0.5726495726495726,
+      "f1": 0.8850967007963595,
+      "confusion_matrix": [
+        [
+          134,
+          100
+        ],
+        [
+          1,
+          389
+        ]
+      ],
+      "tp": 389,
+      "tn": 134,
+      "fp": 100,
+      "fn": 1,
+      "model_name": "vanilla_cnn",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 789,
+      "label_fraction": 1.0,
+      "num_parameters": 65314,
+      "latency_ms_per_sample": 0.104,
+      "throughput_fps": 9657.8,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/vanilla_cnn_pneumoniamnist_frac100_seed789_best.pth",
+      "model_key": "vanilla_cnn"
+    },
+    {
+      "accuracy": 0.8974358974358975,
+      "roc_auc": 0.9713456059609905,
+      "precision": 0.8638392857142857,
+      "recall": 0.9923076923076923,
+      "sensitivity": 0.9923076923076923,
+      "specificity": 0.7393162393162394,
+      "f1": 0.9236276849642004,
+      "confusion_matrix": [
+        [
+          173,
+          61
+        ],
+        [
+          3,
+          387
+        ]
+      ],
+      "tp": 387,
+      "tn": 173,
+      "fp": 61,
+      "fn": 3,
+      "model_name": "vanilla_cnn",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 999,
+      "label_fraction": 1.0,
+      "num_parameters": 65314,
+      "latency_ms_per_sample": 0.103,
+      "throughput_fps": 9717.8,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/vanilla_cnn_pneumoniamnist_frac100_seed999_best.pth",
+      "model_key": "vanilla_cnn"
+    }
+  ],
+  "vgg16": [
+    {
+      "accuracy": 0.8557692307692307,
+      "roc_auc": 0.9680254218715757,
+      "precision": 0.8138075313807531,
+      "recall": 0.9974358974358974,
+      "sensitivity": 0.9974358974358974,
+      "specificity": 0.6196581196581197,
+      "f1": 0.8963133640552995,
+      "confusion_matrix": [
+        [
+          145,
+          89
+        ],
+        [
+          1,
+          389
+        ]
+      ],
+      "tp": 389,
+      "tn": 145,
+      "fp": 89,
+      "fn": 1,
+      "model_name": "vgg16",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 42,
+      "label_fraction": 1.0,
+      "num_parameters": 894498,
+      "latency_ms_per_sample": 0.141,
+      "throughput_fps": 7095.5,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/vgg16_pneumoniamnist_frac100_seed42_best.pth",
+      "model_key": "vgg16"
+    },
+    {
+      "accuracy": 0.8461538461538461,
+      "roc_auc": 0.9664201183431953,
+      "precision": 0.8037190082644629,
+      "recall": 0.9974358974358974,
+      "sensitivity": 0.9974358974358974,
+      "specificity": 0.594017094017094,
+      "f1": 0.8901601830663616,
+      "confusion_matrix": [
+        [
+          139,
+          95
+        ],
+        [
+          1,
+          389
+        ]
+      ],
+      "tp": 389,
+      "tn": 139,
+      "fp": 95,
+      "fn": 1,
+      "model_name": "vgg16",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 123,
+      "label_fraction": 1.0,
+      "num_parameters": 894498,
+      "latency_ms_per_sample": 0.122,
+      "throughput_fps": 8184.8,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/vgg16_pneumoniamnist_frac100_seed123_best.pth",
+      "model_key": "vgg16"
+    },
+    {
+      "accuracy": 0.9038461538461539,
+      "roc_auc": 0.974183651106728,
+      "precision": 0.8767123287671232,
+      "recall": 0.9846153846153847,
+      "sensitivity": 0.9846153846153847,
+      "specificity": 0.7692307692307693,
+      "f1": 0.927536231884058,
+      "confusion_matrix": [
+        [
+          180,
+          54
+        ],
+        [
+          6,
+          384
+        ]
+      ],
+      "tp": 384,
+      "tn": 180,
+      "fp": 54,
+      "fn": 6,
+      "model_name": "vgg16",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 456,
+      "label_fraction": 1.0,
+      "num_parameters": 894498,
+      "latency_ms_per_sample": 0.146,
+      "throughput_fps": 6855.7,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/vgg16_pneumoniamnist_frac100_seed456_best.pth",
+      "model_key": "vgg16"
+    },
+    {
+      "accuracy": 0.8685897435897436,
+      "roc_auc": 0.9695266272189349,
+      "precision": 0.8304721030042919,
+      "recall": 0.9923076923076923,
+      "sensitivity": 0.9923076923076923,
+      "specificity": 0.6623931623931624,
+      "f1": 0.9042056074766355,
+      "confusion_matrix": [
+        [
+          155,
+          79
+        ],
+        [
+          3,
+          387
+        ]
+      ],
+      "tp": 387,
+      "tn": 155,
+      "fp": 79,
+      "fn": 3,
+      "model_name": "vgg16",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 789,
+      "label_fraction": 1.0,
+      "num_parameters": 894498,
+      "latency_ms_per_sample": 0.131,
+      "throughput_fps": 7658.2,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/vgg16_pneumoniamnist_frac100_seed789_best.pth",
+      "model_key": "vgg16"
+    },
+    {
+      "accuracy": 0.8733974358974359,
+      "roc_auc": 0.9752301117685733,
+      "precision": 0.8358531317494601,
+      "recall": 0.9923076923076923,
+      "sensitivity": 0.9923076923076923,
+      "specificity": 0.6752136752136753,
+      "f1": 0.9073856975381008,
+      "confusion_matrix": [
+        [
+          158,
+          76
+        ],
+        [
+          3,
+          387
+        ]
+      ],
+      "tp": 387,
+      "tn": 158,
+      "fp": 76,
+      "fn": 3,
+      "model_name": "vgg16",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 999,
+      "label_fraction": 1.0,
+      "num_parameters": 894498,
+      "latency_ms_per_sample": 0.129,
+      "throughput_fps": 7770.3,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/vgg16_pneumoniamnist_frac100_seed999_best.pth",
+      "model_key": "vgg16"
+    }
+  ],
+  "resnet50v2": [
+    {
+      "accuracy": 0.8509615384615384,
+      "roc_auc": 0.9668529476221784,
+      "precision": 0.8087318087318087,
+      "recall": 0.9974358974358974,
+      "sensitivity": 0.9974358974358974,
+      "specificity": 0.6068376068376068,
+      "f1": 0.8932261768082663,
+      "confusion_matrix": [
+        [
+          142,
+          92
+        ],
+        [
+          1,
+          389
+        ]
+      ],
+      "tp": 389,
+      "tn": 142,
+      "fp": 92,
+      "fn": 1,
+      "model_name": "resnet50v2",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 42,
+      "label_fraction": 1.0,
+      "num_parameters": 751522,
+      "latency_ms_per_sample": 0.346,
+      "throughput_fps": 2890.9,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/resnet50v2_pneumoniamnist_frac100_seed42_best.pth",
+      "model_key": "resnet50v2"
+    },
+    {
+      "accuracy": 0.8349358974358975,
+      "roc_auc": 0.9523778216085909,
+      "precision": 0.7946611909650924,
+      "recall": 0.9923076923076923,
+      "sensitivity": 0.9923076923076923,
+      "specificity": 0.5726495726495726,
+      "f1": 0.8825541619156214,
+      "confusion_matrix": [
+        [
+          134,
+          100
+        ],
+        [
+          3,
+          387
+        ]
+      ],
+      "tp": 387,
+      "tn": 134,
+      "fp": 100,
+      "fn": 3,
+      "model_name": "resnet50v2",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 123,
+      "label_fraction": 1.0,
+      "num_parameters": 751522,
+      "latency_ms_per_sample": 0.254,
+      "throughput_fps": 3930.2,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/resnet50v2_pneumoniamnist_frac100_seed123_best.pth",
+      "model_key": "resnet50v2"
+    },
+    {
+      "accuracy": 0.8509615384615384,
+      "roc_auc": 0.9571389436774052,
+      "precision": 0.8100208768267223,
+      "recall": 0.9948717948717949,
+      "sensitivity": 0.9948717948717949,
+      "specificity": 0.6111111111111112,
+      "f1": 0.8929804372842347,
+      "confusion_matrix": [
+        [
+          143,
+          91
+        ],
+        [
+          2,
+          388
+        ]
+      ],
+      "tp": 388,
+      "tn": 143,
+      "fp": 91,
+      "fn": 2,
+      "model_name": "resnet50v2",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 456,
+      "label_fraction": 1.0,
+      "num_parameters": 751522,
+      "latency_ms_per_sample": 0.259,
+      "throughput_fps": 3867.7,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/resnet50v2_pneumoniamnist_frac100_seed456_best.pth",
+      "model_key": "resnet50v2"
+    },
+    {
+      "accuracy": 0.8365384615384616,
+      "roc_auc": 0.9534955073416612,
+      "precision": 0.7950819672131147,
+      "recall": 0.9948717948717949,
+      "sensitivity": 0.9948717948717949,
+      "specificity": 0.5726495726495726,
+      "f1": 0.8838268792710706,
+      "confusion_matrix": [
+        [
+          134,
+          100
+        ],
+        [
+          2,
+          388
+        ]
+      ],
+      "tp": 388,
+      "tn": 134,
+      "fp": 100,
+      "fn": 2,
+      "model_name": "resnet50v2",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 789,
+      "label_fraction": 1.0,
+      "num_parameters": 751522,
+      "latency_ms_per_sample": 0.256,
+      "throughput_fps": 3904.0,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/resnet50v2_pneumoniamnist_frac100_seed789_best.pth",
+      "model_key": "resnet50v2"
+    },
+    {
+      "accuracy": 0.8381410256410257,
+      "roc_auc": 0.964014902476441,
+      "precision": 0.7967145790554415,
+      "recall": 0.9948717948717949,
+      "sensitivity": 0.9948717948717949,
+      "specificity": 0.5769230769230769,
+      "f1": 0.8848346636259977,
+      "confusion_matrix": [
+        [
+          135,
+          99
+        ],
+        [
+          2,
+          388
+        ]
+      ],
+      "tp": 388,
+      "tn": 135,
+      "fp": 99,
+      "fn": 2,
+      "model_name": "resnet50v2",
+      "dataset": "pneumoniamnist",
+      "split": "test",
+      "seed": 999,
+      "label_fraction": 1.0,
+      "num_parameters": 751522,
+      "latency_ms_per_sample": 0.251,
+      "throughput_fps": 3980.3,
+      "threshold": 0.5,
+      "tta_applied": false,
+      "logit_adj_applied": false,
+      "checkpoint_path": "./checkpoints/resnet50v2_pneumoniamnist_frac100_seed999_best.pth",
+      "model_key": "resnet50v2"
+    }
+  ]
+}

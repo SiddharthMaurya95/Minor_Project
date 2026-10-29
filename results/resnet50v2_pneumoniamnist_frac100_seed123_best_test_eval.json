@@ -1,0 +1,35 @@
+{
+  "accuracy": 0.8349358974358975,
+  "roc_auc": 0.9523778216085909,
+  "precision": 0.7946611909650924,
+  "recall": 0.9923076923076923,
+  "sensitivity": 0.9923076923076923,
+  "specificity": 0.5726495726495726,
+  "f1": 0.8825541619156214,
+  "confusion_matrix": [
+    [
+      134,
+      100
+    ],
+    [
+      3,
+      387
+    ]
+  ],
+  "tp": 387,
+  "tn": 134,
+  "fp": 100,
+  "fn": 3,
+  "model_name": "resnet50v2",
+  "dataset": "pneumoniamnist",
+  "split": "test",
+  "seed": 123,
+  "label_fraction": 1.0,
+  "num_parameters": 751522,
+  "latency_ms_per_sample": 0.254,
+  "throughput_fps": 3930.2,
+  "threshold": 0.5,
+  "tta_applied": false,
+  "logit_adj_applied": false,
+  "checkpoint_path": "./checkpoints/resnet50v2_pneumoniamnist_frac100_seed123_best.pth"
+}

@@ -1,0 +1,65 @@
+Delhi Technological University
+
+(Formerly Delhi College of Engineering)
+
+Shahbad Daulatpur, Bawana Road, Delhi-110042
+
+Department of Computer Science & Engineering
+
+B.Tech Minor Project Synopsis, AY 2026-27
+
+Title: Self-Supervised Learning for Medical Image Classification Using Labelled and Unlabelled Data
+
+Problem Statement:
+
+Medical image datasets contain images from different disease categories, but correctly identifying their category is difficult because many images may look visually similar.
+
+In many cases, only a limited number of images have correct labels, while a larger number of images may be unlabelled.The problem is to learn useful patterns from the available medical images and correctly classify a new medical image into its appropriate category.
+
+The system should improve classification reliability by using both labelled information and useful patterns present in unlabelled images.
+
+Abstract / Brief Description:
+
+This project focuses on improving medical image classification by making use of unlabeled images. The project uses a self-supervised learning approach with random masking. An unlabeled medical image is taken as the input. Two different versions of the same image are created by applying random masking. These two views are then passed through the same CNN with shared weights. The CNN produces a representation for each view. A consistency loss is calculated between the two representations. If the representations are different, the loss becomes higher. Backpropagation then updates the CNN weights. This process helps the CNN learn features that remain useful even when parts of an image are missing. The paper uses this idea to keep the learned semantics of similar image views consistent.After self-supervised pre-training, the learned CNN is fine-tuned using labeled medical images. In this stage, the model receives the actual class labels and learns to map the learned image features to the correct classes. Thus, the unlabeled data helps the model learn useful visual features, while the labeled data helps it learn the final classification task.
+
+Technologies and Tools to be Used:
+
+1)Programming Language, Libraries and Frameworks: Python, PyTorch, torchvision, MedMNIST, NumPy, scikit-learn, pytorch-grad-cam, Matplotlib, and Seaborn.
+
+2) Techniques Used: Convolutional Neural Network (CNN), Self-Supervised Learning, Random Masking, Data Augmentation, Fine-Tuning, and Medical Image Classification.
+
+Expected Outcome:
+
+A CNN model trained first on unlabelled medical images using self-supervised learning.
+
+A fine-tuned classification model trained using labelled medical images.
+
+Classification results for the selected MedMNIST datasets.
+
+Accuracy, AUC, precision, recall, and F1-score for each dataset.
+
+A confusion matrix to show correct and incorrect predictions.
+
+A comparison between a normal CNN and the self-supervised learning model. Sample image predictions with their predicted class labels.
+
+Sustainable Development Goal (SDG) Alignment: SDG 3 – Good Health and Well-being.
+
+Contribution / Impact: This project uses labelled and unlabelled medical images to improve medical image classification when labelled data is limited. It uses a lightweight CNN and explanation maps to provide efficient and understandable predictions across different medical image datasets.
+
+Fig 1 : Self Supervised Learning with Random Masking (using CNN)
+
+Group Member Details:
+
+Supervisor / Project Guide Details:
+
+Signature: ____________________________
+
+Guide Name: Dr. Ravin Ahuja
+
+S.No | Name | Roll No. | Signature
+
+1 | Manish Singh | 23/CS/244 | 
+
+2 | Shivam | 23/CS/394 | 
+
+3 | Siddharth Kumar Maurya | 23/CS/411 | 

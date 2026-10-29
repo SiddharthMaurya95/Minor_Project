@@ -1,0 +1,35 @@
+{
+  "accuracy": 0.9086538461538461,
+  "roc_auc": 0.9629300898531667,
+  "precision": 0.8992805755395683,
+  "recall": 0.9615384615384616,
+  "sensitivity": 0.9615384615384616,
+  "specificity": 0.8205128205128205,
+  "f1": 0.929368029739777,
+  "confusion_matrix": [
+    [
+      192,
+      42
+    ],
+    [
+      15,
+      375
+    ]
+  ],
+  "tp": 375,
+  "tn": 192,
+  "fp": 42,
+  "fn": 15,
+  "model_name": "physsl_net",
+  "dataset": "pneumoniamnist",
+  "split": "test",
+  "seed": 123,
+  "label_fraction": 1.0,
+  "num_parameters": 46294,
+  "latency_ms_per_sample": 0.145,
+  "throughput_fps": 6919.6,
+  "threshold": 0.5,
+  "tta_applied": false,
+  "logit_adj_applied": true,
+  "checkpoint_path": "checkpoints/physsl_net_pneumoniamnist_frac100_seed123_best.pth"
+}

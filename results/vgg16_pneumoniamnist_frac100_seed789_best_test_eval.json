@@ -1,0 +1,35 @@
+{
+  "accuracy": 0.8685897435897436,
+  "roc_auc": 0.9695266272189349,
+  "precision": 0.8304721030042919,
+  "recall": 0.9923076923076923,
+  "sensitivity": 0.9923076923076923,
+  "specificity": 0.6623931623931624,
+  "f1": 0.9042056074766355,
+  "confusion_matrix": [
+    [
+      155,
+      79
+    ],
+    [
+      3,
+      387
+    ]
+  ],
+  "tp": 387,
+  "tn": 155,
+  "fp": 79,
+  "fn": 3,
+  "model_name": "vgg16",
+  "dataset": "pneumoniamnist",
+  "split": "test",
+  "seed": 789,
+  "label_fraction": 1.0,
+  "num_parameters": 894498,
+  "latency_ms_per_sample": 0.131,
+  "throughput_fps": 7658.2,
+  "threshold": 0.5,
+  "tta_applied": false,
+  "logit_adj_applied": false,
+  "checkpoint_path": "./checkpoints/vgg16_pneumoniamnist_frac100_seed789_best.pth"
+}

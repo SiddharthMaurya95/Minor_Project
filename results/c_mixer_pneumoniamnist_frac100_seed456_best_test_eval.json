@@ -1,0 +1,35 @@
+{
+  "accuracy": 0.8717948717948718,
+  "roc_auc": 0.9330703484549638,
+  "precision": 0.8369565217391305,
+  "recall": 0.9871794871794872,
+  "sensitivity": 0.9871794871794872,
+  "specificity": 0.6794871794871795,
+  "f1": 0.9058823529411765,
+  "confusion_matrix": [
+    [
+      159,
+      75
+    ],
+    [
+      5,
+      385
+    ]
+  ],
+  "tp": 385,
+  "tn": 159,
+  "fp": 75,
+  "fn": 5,
+  "model_name": "c_mixer",
+  "dataset": "pneumoniamnist",
+  "split": "test",
+  "seed": 456,
+  "label_fraction": 1.0,
+  "num_parameters": 277156,
+  "latency_ms_per_sample": 0.238,
+  "throughput_fps": 4196.3,
+  "threshold": 0.5,
+  "tta_applied": false,
+  "logit_adj_applied": false,
+  "checkpoint_path": "./checkpoints/c_mixer_pneumoniamnist_frac100_seed456_best.pth"
+}

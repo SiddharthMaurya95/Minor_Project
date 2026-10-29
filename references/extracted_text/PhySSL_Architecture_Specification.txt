@@ -1,0 +1,195 @@
+PhySSL-Net
+
+Architecture Specification
+
+Physics-/Structure-Informed Self-Supervised Learning for Medical Image Classification
+
+Important research-integrity note
+
+The literature descriptions and citation numbers supplied for this document were not accompanied by complete bibliographic records. They are therefore treated as proposed research leads, not verified citations. Before using this document in a report or viva, locate each paper, confirm its title/authors/year/venue/DOI, and check that it supports the exact claim attributed to it.
+
+1. Purpose and Scope
+
+PhySSL-Net is a proposed medical-image classification architecture that combines intensity-aware feature encoding, multi-scale texture extraction, curvature-inspired spatial attention, global token mixing, spatial-pyramid aggregation, and masked self-supervised pre-training. The intended research question is whether these design choices can improve representation learning when only a limited portion of the training images have labels.
+
+This specification documents the design described in the supplied architecture notes. It does not claim that every block is novel, that the complete architecture has already been validated, or that the system is ready for clinical use.
+
+2. Design Goals
+
+Learn useful representations from unlabelled medical images before supervised fine-tuning.
+
+Use a limited labelled subset for downstream classification and measure how performance changes with label availability.
+
+Combine local intensity and texture cues with broader spatial context.
+
+Keep each proposed block independently ablatable so its contribution can be tested.
+
+Evaluate performance on held-out data with patient-level separation where patient identifiers are available.
+
+Avoid claims of diagnostic safety or clinical benefit unless supported by external and clinical validation.
+
+3. High-Level Architecture
+
+Medical image → preprocessing/augmentation → intensity RBF encoding → CNN stem/backbone → band-pass residual block → curvature-inspired attention → 7×7 token mixer → spatial pyramid head → classifier
+
+Self-supervised path: two augmented views of an image → online/target encoders (or the exact MSN-style variant selected) → masked-view representation objective → pre-trained encoder → supervised fine-tuning with labelled images.
+
+Implementation note: the exact order, tensor dimensions, number of channels, backbone, masking ratio, optimizer, and loss weights must be fixed in the experiment configuration. The supplied notes do not specify these values.
+
+4. Component Specifications
+
+4.1 Learnable Intensity RBF Encoding
+
+Purpose: enrich raw pixel intensity with smooth responses centred on learnable intensity values.
+
+Φ(x) = [x, exp(−β₁(x − c₁)²), …, exp(−βK(x − cK)²)]
+
+Here x is a normalized input intensity, cₖ is the centre of the k-th radial-basis response, and βₖ controls its width. For stable optimization, βₖ should be constrained to be positive, for example by parameterizing βₖ = softplus(aₖ) + ε. The output adds K smooth channels to the original intensity channel.
+
+Implementation checks: define the input intensity range; initialize centres across that range; document whether centres are learnable; and verify that the encoding does not inadvertently leak dataset-specific intensity statistics across train/test splits.
+
+Evidence status: the supplied notes associate this design with adaptive Gaussian soft-windowing and learnable RBF kernels. The exact MICCAI/Sci Rep papers and the claim that they use this same formulation must be verified before citation.
+
+4.2 Multi-Scale Band-Pass / High-Frequency Residual Block
+
+Y_high = |Y_low − AvgPool(Y_low)|
+
+Purpose: emphasize local variation relative to a pooled neighbourhood. In the supplied formula, Y_low is the feature map entering the operation and AvgPool(Y_low) is a locally smoothed version; their absolute difference is a high-pass-like residual.
+
+Important distinction: this expression is not, by itself, a wavelet-scattering transform. Scattering networks generally use specified wavelet band-pass filters, modulus nonlinearities, and averaging. If the implementation uses only average pooling and subtraction, describe it as a pooling-based high-frequency residual rather than claiming exact equivalence to scattering coefficients.
+
+Implementation checks: define pooling kernel/stride/padding; ensure spatial dimensions match before subtraction; specify whether the residual is concatenated, added, or projected back into the main feature stream.
+
+4.3 Level-Set / Curvature-Inspired Attention
+
+A_curv = σ(−∇ · (∇u / |∇u|))
+
+Purpose: create a spatial attention map from a curvature-like differential quantity of a scalar feature field u. The expression shown here uses the divergence of the normalized gradient, which is a common level-set curvature form where the gradient is non-zero.
+
+The supplied notes show a related expression, but the notation is ambiguous in the source text. Confirm the exact denominator, smoothing term, sign convention, and whether u is an image intensity or a learned feature map. A practical implementation may use ∇u / sqrt(|∇u|² + ε) for numerical stability.
+
+This block should be described as curvature-inspired attention unless the implementation and derivation establish a more precise level-set method. Curvature-based segmentation literature does not automatically prove that this attention map improves image classification.
+
+4.4 Global Token Mixer
+
+Purpose: enable spatial communication beyond local convolutional receptive fields. The supplied design specifies spatial MLP mixing over a 7×7 token grid (49 spatial positions).
+
+One possible formulation for a feature tensor X ∈ R^(B×C×7×7) is to reshape each channel into a 49-element spatial vector and apply a shared or channel-specific spatial mixing layer. The exact implementation must state whether mixing is per channel, across channels, or both, and whether normalization and residual connections are used.
+
+Implementation checks: define the downsampling/adaptive-pooling operation that produces 7×7 tokens; record parameter count and FLOPs; compare against a parameter-matched baseline. Do not claim a specific inference-speed advantage unless measured on the same hardware and protocol.
+
+4.5 Spatial Pyramid Head
+
+Purpose: aggregate evidence at more than one spatial scale before classification. The supplied notes mention pooling scales of 1×1, 2×2, and 3×1.
+
+The 3×1 scale is unusual for a generic spatial pyramid and may be intentional for anisotropic images. Confirm this choice against the actual code or design. For each pooled branch, flatten or project the pooled representation, concatenate the branches, and feed the combined vector to the classifier.
+
+Implementation checks: specify adaptive-pooling output sizes, projection dimensions, concatenation order, and classifier output. Compare with global average pooling to test whether the pyramid contributes useful information.
+
+4.6 Masked Consistency Self-Supervised Pre-training
+
+Purpose: learn representations from unlabelled images by comparing representations of related views, including a masked view. The supplied notes refer to a Masked Siamese Network (MSN)-style framework and a cosine-similarity objective.
+
+L_cos = 1 − (z₁ · z₂) / (||z₁||₂ ||z₂||₂)
+
+This is a generic cosine-distance expression between two embeddings z₁ and z₂; it is not a complete specification of MSN. A faithful MSN implementation may require a target encoder, predictor/projection heads, masking strategy, stop-gradient behaviour, and additional objective details. Choose and cite the exact method that will be implemented rather than referring to all masked Siamese methods as interchangeable.
+
+Record: augmentation pipeline, masking ratio and shape, online/target encoder update rule, projection dimensions, loss definition, batch size, training duration, and the criteria for selecting a checkpoint.
+
+5. Training and Evaluation Protocol
+
+5.1 Data handling
+
+Use a documented dataset with permission and licence suitable for research.
+
+Split by patient/person when identifiers exist; never allow images from the same patient to leak across training and test partitions.
+
+Fit normalization and any data-derived preprocessing only on the training partition.
+
+Keep a final test set untouched during model and hyperparameter selection.
+
+Document class counts, image modality, resolution, exclusion rules, and missing-data handling.
+
+5.2 Experiments
+
+Supervised baseline trained with the labelled subset only.
+
+Self-supervised pre-training followed by fine-tuning on the same labelled subset.
+
+Label-fraction study (for example, several pre-defined labelled-data percentages) using identical splits across methods.
+
+Ablation study removing one proposed block at a time: RBF encoding, residual block, curvature attention, token mixer, and spatial pyramid head.
+
+At least three random seeds where computationally feasible; report mean and standard deviation.
+
+5.3 Metrics
+
+For classification, report accuracy, macro-F1, sensitivity/recall, specificity, AUROC, and AUPRC where appropriate. Include confusion matrices and confidence intervals where feasible. For imbalanced classes, do not rely on accuracy alone. If the task is multi-class, state the averaging convention for each metric.
+
+6. Citation Map and Verification Status
+
+The following table preserves the research leads in the supplied citation map. Since full references were not supplied, none of the specific paper-level claims should be treated as verified or copied into a thesis as a confirmed citation until checked against the original publications.
+
+Citation hygiene: the bracket numbers [1], [2], [6], [8]–[14] were present in the supplied notes but no complete numbered bibliography was provided. Do not use those bracket numbers in a final report until they map to verified entries in a reference list.
+
+7. Limitations and Risks
+
+A mathematically motivated block does not guarantee improved classification; empirical ablation is required.
+
+A citation about segmentation, representation learning, or another modality may provide background but may not validate the exact classification claim.
+
+The RBF encoding may increase channel count and computational cost.
+
+Finite-difference curvature estimates can be noisy and sensitive to image resolution and feature scaling.
+
+Pooling-based residual extraction can discard information or amplify noise; compare it with a standard convolutional block.
+
+A 7×7 token mixer imposes a fixed spatial representation and may lose fine spatial detail.
+
+Results on a public dataset do not establish clinical effectiveness or generalization to a hospital population.
+
+8. Reproducibility Checklist
+
+Record dataset version, licence, patient-level split identifiers, and preprocessing.
+
+Record input dimensions, architecture configuration, parameter count, and software versions.
+
+Save random seeds, optimizer, learning rate schedule, batch size, epochs, early-stopping rule, and checkpoint-selection rule.
+
+Report all baseline and ablation results, including unsuccessful runs where relevant.
+
+Keep code and configuration files version-controlled.
+
+Provide complete, verified bibliographic references for every paper cited.
+
+Describe the work as research/prototype support, not a validated diagnostic device.
+
+9. Suggested Viva Explanation
+
+“PhySSL-Net is a proposed architecture for studying whether structural feature design and self-supervised pre-training can improve medical image classification when labelled data are limited. The RBF encoding represents intensity values with learnable smooth responses; the residual block emphasizes local variation; curvature-inspired attention explores geometric cues; the token mixer aggregates broader spatial context; and the spatial pyramid combines features at multiple scales. We will evaluate each component through controlled baselines and ablations. The design is motivated by existing mathematical ideas, but the contribution of the combined architecture must be demonstrated experimentally, and the literature claims are being verified against the original papers.”
+
+10. References
+
+Full bibliographic entries were not included in the material supplied for this document. Add verified references here only after checking the original publications. For each entry, include authors, exact title, journal/conference, year, volume/pages where applicable, and DOI or stable publisher URL.
+
+Document purpose | Define the proposed model blocks, mathematical operations, and evaluation plan.
+
+Project context | B.Tech research project on medical image classification using labelled and unlabelled data.
+
+Status | Research specification draft; not evidence of completed implementation or clinical validation.
+
+Version | 1.0 • 28 October 2026
+
+Component | Claimed foundation in supplied notes | Citation lead supplied | Verification needed
+
+Intensity RBF | Adaptive Gaussian soft-windowing; learnable RBF kernels | MICCAI 2026 (AGSW-LAMS); Sci Rep 2026 | Exact title, authors, venue, DOI, and formula match.
+
+Band-pass residual | Wavelet/scattering modulus and local averaging | Scattering-network theory; [1], [8] | Confirm cited source and distinguish from pooling residual.
+
+Curvature attention | Level-set curvature and curvature-aware medical imaging | J. Comput. Phys. 2022; 2024 Ricci-curvature work; [2], [9] | Verify paper identity and whether evidence concerns segmentation or classification.
+
+Token mixer | Spatial/frequency-domain global mixing | ICCV 2023; IEEE Access 2025 mammography; [10], [11] | Confirm exact method, task, metrics, and speed comparison.
+
+Spatial pyramid | Multi-scale pooling for medical image classification | Springer 2024 brain tumour; PeerJ 2025 chest X-ray; [12], [13] | Confirm architecture and reported metric against full paper.
+
+Masked SSL | Masked Siamese Network / consistency pre-training | Nature Scientific Reports 2024 chest X-ray; [14] | Confirm exact MSN variant, dataset, AUROC change, and baseline.

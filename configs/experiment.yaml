@@ -1,0 +1,160 @@
+# ==============================================================================
+# PhySSL-Net Experiment Configuration
+# DTU B.Tech Minor/Major Project, CSE Dept., AY 2026-27 (Group DTU/CSE/BTP/GP053)
+# ==============================================================================
+
+project:
+  name: "PhySSL-Net-Research"
+  institution: "Delhi Technological University"
+  department: "Computer Science & Engineering"
+  supervisor: "Dr. Ravin Ahuja"
+  group_id: "DTU/CSE/BTP/GP053"
+  artifacts_dir: "./results"
+  checkpoints_dir: "./checkpoints"
+
+# Primary Dataset Settings (MedMNIST v2)
+dataset:
+  name: "pneumoniamnist" # Options: pneumoniamnist, dermamnist, pathmnist
+  data_dir: "./data"
+  in_channels: 1         # Automatically updated based on dataset (1 for Pneumonia, 3 for Derma/Path)
+  num_classes: 2         # 2 for Pneumonia, 7 for Derma, 9 for Path
+  img_size: 28
+  batch_size: 64
+  num_workers: 0         # Safe setting for Windows multiprocessing
+  pin_memory: true
+  label_fractions: [1.0, 0.5, 0.25, 0.10]
+
+# PhySSL-Net Architecture Configuration
+physsl_net:
+  rbf:
+    enabled: true
+    num_centers: 8
+    init_range: [0.0, 1.0]
+    eps: 0.0001
+  stem:
+    out_channels: 32
+    kernel_size: 3
+    stride: 1
+    padding: 1
+  bandpass:
+    enabled: true
+    kernel_size: 7
+    padding: 3
+  curvature:
+    enabled: true
+    eps: 0.01          # Strictly 1e-2 as per approved specification
+  token_mixer:
+    enabled: true
+    grid_size: 7       # 7x7 spatial tokens = 49 tokens
+    embed_dim: 64
+    hidden_dim: 128
+    dropout: 0.1
+  pyramid_head:
+    scales: [1, 2]     # 1x1 and 2x2 adaptive pooling
+    dropout: 0.2
+
+# Self-Supervised Learning (SimSiam Masked Consistency) Pretraining
+pretrain:
+  enabled: true
+  epochs: 15
+  batch_size: 64
+  lr: 0.001
+  weight_decay: 0.0001
+  optimizer: "adamw"
+  scheduler: "cosine"
+  mask_ratio: 0.25
+  patch_size: 4
+  proj_dim: 128
+  pred_dim: 64
+
+# Supervised Fine-Tuning & Baseline Training
+train:
+  epochs: 25
+  batch_size: 64
+  lr: 0.001
+  weight_decay: 0.0001
+  optimizer: "adamw"
+  scheduler: "cosine"
+  early_stopping_patience: 8
+  monitor_metric: "val_roc_auc"
+  save_best_only: true
+
+# Model-Specific Reproduction Training Recipes
+model_recipes:
+  c_mixer:
+    description: "Complex Mixer (Zheng & Jia, 2023) reproduction recipe"
+    optimizer: "adamw"
+    lr: 0.001
+    weight_decay: 0.0001
+    scheduler: "multistep"
+    milestones: [50, 75]
+    gamma: 0.1
+    epochs: 25
+    early_stopping_patience: 8
+  vanilla_cnn:
+    description: "Standard 4-layer CNN (DTU Minor Project baseline)"
+    optimizer: "adam"
+    lr: 0.001
+    weight_decay: 0.0001
+    scheduler: "cosine"
+    epochs: 25
+    early_stopping_patience: 8
+  vgg16:
+    description: "VGG16 adapted with BatchNorm for 28x28 medical images"
+    optimizer: "adamw"
+    lr: 0.0005
+    weight_decay: 0.0001
+    scheduler: "cosine"
+    epochs: 25
+    early_stopping_patience: 8
+  resnet50v2:
+    description: "Pre-activation ResNet50V2 adapted for 28x28 medical images"
+    optimizer: "adamw"
+    lr: 0.0005
+    weight_decay: 0.0001
+    scheduler: "cosine"
+    epochs: 25
+    early_stopping_patience: 8
+  physsl_net:
+    description: "Proposed PhySSL-Net fine-tuning recipe"
+    optimizer: "adamw"
+    lr: 0.001
+    weight_decay: 0.0001
+    scheduler: "cosine"
+    epochs: 25
+    early_stopping_patience: 8
+
+# Evaluation and Statistics
+evaluation:
+  threshold: 0.5
+  logit_adjustment: false # Kept disabled by default for controlled benchmarking
+  metrics:
+    - "accuracy"
+    - "roc_auc"
+    - "precision"
+    - "recall"
+    - "f1"
+    - "confusion_matrix"
+
+# Benchmark Seeds
+seeds:
+  - 42
+  - 123
+  - 456
+  - 789
+  - 999
+
+# Baseline Models to Benchmark
+baselines:
+  - "c_mixer"
+  - "vgg16"
+  - "resnet50v2"
+  - "vanilla_cnn"
+
+# Architectural Ablations
+ablations:
+  - "no_rbf"
+  - "no_bandpass"
+  - "no_curvature"
+  - "no_token_mixer"
+  - "no_ssl"

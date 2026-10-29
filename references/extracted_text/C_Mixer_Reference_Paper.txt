@@ -1,0 +1,655 @@
+=== PAGE 1 ===
+1
+Complex Mixer for MedMNIST Classiﬁcation
+Decathlon
+Zhuoran Zheng 1 Xiuyi Jia 1
+1CSE, Nanjing University of Science and Technology
+Abstract—With the development of the medical image ﬁeld,
+researchers seek to develop a class of datasets to block the need
+for medical knowledge, such as MedMNIST (v2). MedMNIST
+(v2) includes a large number of small-sized (28 × 28 or 28 × 28
+× 28) medical samples and the corresponding expert annotations
+(class label). The existing baseline model (Google AutoML Vision,
+ResNet-50+3D) can reach an average accuracy of over 70% on
+MedMNIST (v2) datasets, which is comparable to the perfor-
+mance of expert decision-making. Nevertheless, we note that there
+are two insurmountable obstacles to modeling on MedMNIST
+(v2): 1) the raw images are cropped to low scales may cause
+effective recognition information to be dropped and the classiﬁer
+to have difﬁculty in tracing accurate decision boundaries; 2)
+the labelers’ subjective insight may cause many uncertainties in
+the label space. To address these issues, we develop a Complex
+Mixer (C-Mixer) with a pre-training framework to alleviate
+the problem of insufﬁcient information and uncertainty in the
+label space by introducing an incentive imaginary matrix and
+a self-supervised scheme with random masking. Our method
+(incentive learning and self-supervised learning with masking)
+shows surprising potential on both the standard MedMNIST (v2)
+dataset, the customized weakly supervised datasets, and other
+image enhancement tasks.
+I. I NTRODUCTION
+Currently, medical image analysis [1], [4], [21] based on
+machine learning can help healthcare professionals to make
+efﬁcient decisions. However, most of the medical image
+datasets require background knowledge from pattern recog-
+nition (image processing) and medical imaging, which is a
+great challenge for non-specialized researchers.
+To clear this obstacle, MedMNIST (v2) [27] is proposed,
+which involves samples that can be deemed as a “blind
+box” for the researcher, where the pipeline (classiﬁer) is built
+without priori knowledge. The details of MedMNIST (v2) are
+summarized and reported in Table I. We note that there are
+two key issues with MedMNIST (v2) that may block the
+performance of the existing classiﬁer. 1) MedMNIST (v2)
+contains samples that are cropped from a medical image with
+high resolution to an image resolution of 28 × 28 (2D) or 28
+× 28× 28 (3D). Predictably, this encoding approach (linear
+interpolation) loses a large number of local details, and the
+information about the lesion on the medical image is diluted.
+To efﬁciently extract lesion-related pixels, several ViT-based
+classiﬁers are proposed [14], [17], which attempt to incorpo-
+rate long-range modeling with some local learning algorithms
+to deeply mine each pixel relationship on lesion information.
+However, the effectiveness of the modeling depends purely
+correspondence to jiaxy@njust.edu.cn
+on the capacity of the network (MedViT [17] with at least
+10M parameters), and the enormous number of parameters
+brought by ViT is difﬁcult to deploy in real medical image
+analysis. 2) Since there is subjective insight in expert labeling,
+the 18 datasets (see Table I) are inevitably mislabeled, which
+causes a large number of uncertainties in the label space [12].
+Existing baseline algorithms do not model the uncertainty in
+the label space, which is one of the critical reasons for the
+limited performance of the classiﬁer.
+Considering together, we propose the incentive learning
+(a novel machine learning paradigm) and a self-supervised
+pre-training method with random masking. The key to our
+approach is to learn incentivized imaginary information, which
+is then enforced on the raw image to generate a complex space.
+Finally, Complex Mixer (C-Mixer) and Pearson curves are
+used for constructing the learner. We develop this algorithm
+from two insights: i) Incentive learning: some conditional
+noise (the mean and variance of Gaussian noise are learned
+parameters) is added to the input information that may reduce
+the learner’s modeling cost and complement some recognition-
+friendly signals [13]. ii) High-dimensional space learning:
+the imaginary numbers implicitly involve properties such as
+rotation and phase change, and combining them with the real
+number space can generate a complex space to learn a robust
+decision plane for the classiﬁer in higher dimensions [5],
+[10], [25]. In addition, we design a pre-training method with
+random masking that can enforce a latent regularization term
+on the C-Mixer so that it has consistently determined for
+similar samples without the disturbance of uncertainty in
+the label space. Extensive experimental results demonstrate
+that our method outperforms existing state-of-the-art methods
+on standard MedMNIST (v2) as well as on custom semi-
+supervised datasets by an average of 5-9%. Besides, we also
+try to provide the existing algorithm (image enhancement task)
+with an incentivized Gaussian noise or a pre-training method
+with random masking, and the experiments show that both of
+them have different degrees of gain. The contributions of this
+paper are summarized as follows:
+• We propose the incentive learning as well as a self-
+supervised method with random masking, which can
+overcome two key problems that exist in MedMNIST
+(v2).
+• We introduce the complex ﬁeld (input an incentivized
+signal), which to our knowledge is the ﬁrst attempt to
+model a learner by boosting the number ﬁeld dimension
+in a small-scale sample.
+• Experimental results on MedMNIST (v2) demonstrate
+arXiv:2304.10054v1  [cs.CV]  20 Apr 2023
+
+=== PAGE 2 ===
+2
+TABLE I
+DATA SUMMARY OF MedMNIST (V2) DATASET. MC: M ULTI-CLASS . BC: B INARY-CLASS . ML: M ULTI-LABEL . OR: O RDINAL REGRESSION .
+Name Task(#Classes/Labels) #Samples #Training/Validation/Test #Resolution
+MedMNIST2D
+PathMNIST MC(9) 107,180 89,996/10,004/7,180 3× 224× 224→ 3× 28× 28
+ChestMNIST ML(14) BC(2) 112,120 78,468/11,219/22,433 1× 1024× 1024→ 1× 28× 28
+DermaMNIST MC(7) 10,015 7,007/1,003/2,005 3× 600× 450→ 3× 28× 28
+OCTMNIST MC(4) 109,309 97,477/10,832/1,000 1× (384-1,536)× (277-512)→ 1× 28× 28
+PneumoniaMNIST BC(2) 5,856 4,708/524/624 1× (384-2,916)× (127-2,713)→ 1× 28× 28
+RetinaMNIST OR(5) 1,600 1,080/120/400 3× 1,736× 1,824→ 3× 28× 28
+BreastMNIST BC(2) 780 546/78/156 1× 500× 500→ 1× 28× 28
+BloodMNIST MC(8) 17,092 11,959/1,712/3,421 3× 200× 200→ 3× 28× 28
+TissueMNIST MC(8) 236,386 165,466/23,640/47,280 32× 32× 7→ 1× 28× 28
+OrganAMNIST MC(11) 58,850 34,581/6,491/17,788 -→ 1× 28× 28
+OrangCMNIST MC(11) 23,660 13,000/2,392/8,268 -→ 1× 28× 28
+OrganSMNIST MC(11) 25,221 13,940/2,452/8,829 -→ 1× 28× 28
+MedMNIST3D
+OrganMNIST3D MC(11) 1,743 972/161/610 -→ 28× 28× 28
+NoduleMNIST3D BC(2) 1,633 1,158/165/310 1MM× 1MM× 1MM→ 28× 28× 28
+AdrenalMNIST3D BC(2) 1,584 1,188/98/298 64M× 64M× 64M→ 28× 28× 28
+FractureMNIST3D MC(3) 1,370 1,207/103/240 64M× 64M× 64M→ 28× 28× 28
+VesselMNIST3D BC(2) 1,909 1,335/192/382 -→ 28× 28× 28
+SynapseMNIST3D BC(2) 1,759 1,230/177/352 1024× 1024× 1024→ 28× 28× 28
+the proposed algorithm performs favorably against the
+state-of-the-art image recognition methods. In addition,
+our proposed learning paradigm has signiﬁcant gains in
+enhancement tasks.
+II. M ETHOD
+Our approach involves three key components, incentive
+learning, a C-Mixer network, and a self-supervised learn-
+ing framework. Incentive learning is intended to tackle the
+problem of insufﬁcient input information by introducing a
+conditional noise; C-Mixer is a learner used to extract features
+from the complex space; a self-supervised learning framework
+is employed as a latent regularization strategy to overcome the
+problem of uncertainty in the label space.
+Incentive learning. Li [13] proposed and conﬁrmed that
+customized conditional noise can reduce the learning load of
+the learner and even counteract the negative noise. Inspired
+by this, we propose a new machine-learning paradigm termed
+incentive learning. This framework can be formalized as:
+y =f( x ∆ x∗| {z }
+Information fusion
+), (1)
+where x denotes the raw sample, x∗ denotes the customized
+noise from a distribution D, and f denotes the leaner. The
+parameters of distribution D comes from a learner ( MLPs or
+CNNs) conducting modeling on x to obtain the parameters Θ
+(for the Gaussian distribution, the parameters are µ and σ) of
+the prior distribution D. In addition, ∆ in Equation 1 denotes
+an operator for information fusion, such as + or feature map
+stacking.
+In this paper, we assume that the noise with condition
+x∗ comes from a Gaussian distribution DG and that it is
+an imaginary space Ω(i). This is because images that are
+drastically downsampled are hard for the learner to mine
+for distinguishing features only in the RGB domain . The
+imaginary space Ω(i) provides a solution strategy from another
+view because it provides information like frequency domain
+variations as well as rotations, phases, and other variations.
+Speciﬁcally, we start by using theFlatten operator to unfold
+a vector on the input image I, next extract the deep semantics
+of the vector by employing an MLP, and then generate two
+parameters (µ and σ) by a normalization operator. Finally,
+a matrix or vector x∗ with imaginary numbers i is sampled
+by knowing the two parameters ( µ and σ) of the Gaussian
+function DG. Here, the dimensions of the generated matrix
+x∗ are the same as the raw image I. This procedure can be
+formalized as follows:
+x∗(i)∼ DG(Tanh(MLP(Flatten(I)))| {z }
+Parameter generation
+), (2)
+
+=== PAGE 3 ===
+3
+Fig. 1. This ﬁgure shows the architecture of the proposed self-supervised learning framework with random masking. The anchor view and target view are
+randomly masked with a certain probability of being input into the C-Mixer. P aims at projecting the complex number domain into the real number domain,
+and EMA represents parameter sharing.
+where the role of Tanh is normalized. Note that MLP can also
+be replaced by CNNs with global pooling.
+So far, ∆ requires thoughtful design and deliberation to
+form a high-quality input signal. Here, we use x∗(i) as a
+channel of the input signal with the help of the cat operator.
+After that, the real and imaginary matrices are fused by using
+the C-Mixer.
+C-Mixer. How to build an efﬁcient f? Up to now, the existing
+state-of-the-art models consider the long-range dependence
+of exploiting pixels, and here we use MLP-Mixer [23] as a
+baseline to develop the pipeline. A standard MLP-Mixer starts
+acting on X∈ RS×C (S denotes the sequence of inputs and
+C denotes the dimension of the hidden layer) by using a split-
+patch scheme. All patches are linearly projected with the same
+projection matrix W. MLP-Mixer consists of multiple layers
+of identical size, and each layer consists of two MLP blocks.
+Each MLP block contains two FC layers and a GELU (σ)
+conducted independently to each row of its input data tensor.
+Mixer layers can be written as follows:
+U∗,i = X + W2σ(W1LayerNorm(X∗,i)), for i = 1...C,
+Y∗,j = U + W4σ(W3LayerNorm(U∗,j)), for j = 1...S.
+(3)
+Since our network is fed with a tensor ( h = a + bi) in the
+form of a complex number, a modiﬁcation of W is required.
+Here, W can be designed to contain two afﬁne matrices ( W =
+A + Bi). The process of afﬁne transformation can be written
+in the following form:
+Wh = (Aa− Bb) +i(Ba + Ab). (4)
+In addition, for Mixer, the activation function σ is replaced by
+CReLU.
+CReLU = ReLU(a) +iReLU(b). (5)
+In general, the afﬁne transformation W and the activation
+function σ are customized privately based on MLP-Mixer,
+called C-Mixer. Note that the labels in MedMNIST (v2) are
+all integer values Z, and the network is constructed on the
+complex domain, so the features require to be transformed
+to the real ﬁeld R to be used for inference. To address this
+problem, we employ generalized Pearson curves p to achieve
+the conversion between number ﬁelds. This operator can be
+formalized as follows:
+p = Tanh(real(y) + imag.(y)), (6)
+where real and imag. denote the real and imaginary numbers
+that extract the complex number ﬁeld y, respectively. C-Mixer
+has the ability to model long ranges and fewer FLOPs than
+existing complex deep networks.
+Self-supervised learning framework. In this paper, there is a
+signiﬁcant issue that still requires addressing i.e., uncertainty
+in the label space. An obvious solution to the idea is that
+similar inputs should have similar representations. From this,
+we develop a self-supervised learning method, which aims to
+keep the deep semantics learned by the network consistent for
+similar images. As shown in Figure 1, the anchor view is the
+input image of the model, the target view is the augmentation
+at the base of the anchor view, the parameters of C-Mixer are
+shared, and P denotes the generalized Pearson curve. There is
+a key innovation in the overall architecture, where the anchor
+
+=== PAGE 4 ===
+4
+view and target view are randomly masked by some pixels of
+the image before being input into C-Mixer. Self-supervised
+learning framework can be written as follows:
+minH(p,q) = H(P(C-Mixer(Mask(anchor view))),
+P(C-Mixer(Mask(target view)))), (7)
+where H denotes cross-entropy, Mask is a global random
+masking method rather than a locally learned operator.
+Loss function. Since there are mainly two different tasks in
+MedMNIST (v2), the loss function L uses in these two tasks
+({multi-label, binary class }, {binary/multi–lass and ordinal
+regression}) is different as well.
+1) For multi-label, binary class, we employ BCEWithLog-
+itsLoss.
+Li =−[yi×log(ˆyi) + (1−yi)×log(1− ˆyi)],
+L ={L1,..., Ln}. (8)
+2) For binary/multi-class and ordinal regression, we employ
+CrossEntropyLoss.
+L =− 1n
+n∑
+i=0
+[yi×log(ˆyi) + (1−yi)×log(1− ˆyi)]. (9)
+III. E XPERIMENTS
+This section involves an introduction to the dataset, evalu-
+ation methods, quantitative analysis, ablation, and discussion
+and analysis.
+Dataset. The MedMNIST (v2) dataset includes 12 2D and
+6 3D standardized datasets from carefully selected sources
+covering primary data modalities (X-ray, OCT, ultrasound,
+CT, and electron microscope), diverse classiﬁcation tasks
+(binary/multi-class, ordinal regression, and multi-label) and
+dataset scales (from 100 to 100,000). We illustrate the land-
+scape of MedMNIST (v2) in Figure I. The data ﬁles (each
+subset is saved in NumPy (npz) format) of MedMNIST (v2)
+dataset can be accessed at https://medmnist.com/.
+Evaluation metrics. Following the existing work, we select
+AUC and ACC as evaluation methods. ACC [30]: (TP +
+TN)/(TP + FP + FN + TN); TP: True Positive (the predicted
+values of the sample match the true values and are all positive),
+FP: False Positive (the sample prediction is positive and the
+true value is negative), FN: False Negative (the sample predicts
+a negative value while the true value is positive), TN: True
+Negative (the predicted values of the sample match the true
+values and are all negative). AUC [30]: The AUC value is
+equivalent to the probability that a randomly chosen positive
+example is ranked higher than a randomly chosen negative
+example. Usually, the AUC is computed (area under ROC)
+before a ROC curve is prepared.
+Comparison. We conduct some comparison methods on fully-
+supervised, semi-supervised, and weakly-supervised tasks.
+Comparison method: For MedMNIST2D (v2), ResNets (in-
+cluding 4 residual layers, batch normalization, and ReLU acti-
+vation) with a simple early-stopping strategy on the validation
+are set as baseline methods. We use cross-entropy and set
+the batch size to 128 during the model training. We utilize
+an AdamW optimizer [15] with an initial learning rate of
+0.001 and train the network for 100 epochs, delaying the
+learning rate by 0.1 after 50 and 75 epochs. FPVT [14]
+uses the Cutout to alleviate the problem of over-ﬁtting. In
+addition, FPVT uses the AdamW optimizer, and the learning
+rate is set to 1× 10−3. For a fair comparison, here we
+also use the early-stopping scheme. Since MedViT [17] does
+not release the code in the public platform (Github), we
+excerpt the reported results in our paper. In addition, MedViT
+also does not release the test report in the 3D dataset. For
+MedMNIST3D (v2), we conduct ResNet-18/ResNet-50 with
+2.5D/3D/ACS with a simple early-stopping scheme on the
+validation set as baseline methods. The rest of the training
+conﬁguration for ResNet-18/ResNet-50 is consistent with the
+2D image processing case, and the same case for FPVT and
+MedViT. In addition, we run auto-sklearn and AutoKeras on
+both MedMNIST2D and MedMNIST3D, and Google AutoML
+Vision on MedMNIST2D only. All comparison methods are
+conducted on the RTX3090 GPU shader and the experimental
+platform is PyTorch 1.2 (Python 3.8). Experimental tasks:
+We set up three tasks, fully supervised, semi-supervised, and
+weakly-supervised (label space with error label). The fully-
+supervised task follows exactly the divisions of the dataset
+setting in Table I. The semi-supervised task uses only 10%
+of the training data with labels in Table I, and the rest of
+the training samples are added to the test set. The weakly-
+supervised task is to assign a certain number of error labels
+to the label space in the 10% of the training set. To be
+fair, FPVT and the ResNets run our proposed self-supervised
+training scheme on semi-supervised and weakly-supervised
+tasks. FPVT and ResNets perform pre-training using the same
+optimizer, number of training steps, and learning rate as our
+method. Table II-IV show the overall performance of the above
+models.
+Implementation details. 1) Speciﬁcations of the C-Mixer
+architectures. We follow the layout of a standard MLP-Mixer
+with some key parameters, Number of layers: 8, Patch reso-
+lution P× P: 8 × 8, Hidden size C: 218, Sequence length
+S: 49, Parameters (M): 6. Each layer in C-Mixer takes
+an input of the same size. Furthermore, notably, we do not
+consider the role of positional codes. 2) Pre-training. We
+follow the standard self-supervised learning procedure: pre-
+training followed by ﬁne-tuning the downstream tasks. Before
+ﬁne-tuning C-Mixer, we require pre-training C-Mixer on a
+training set without labels. We pre-train the model at resolution
+28× 28 using AdamW with β1 = 0.9, β2 = 0.999, linear
+learning rate warmup of 1000 steps and linear decay, batch size
+500. For the random masking rate in self-supervised learning,
+we use 20%, and the random seeds are not ﬁxed. For the
+target view, we pre-process images by applying the cropping
+technique, random horizontal ﬂipping, and contrast conversion.
+The similarity metrics of the anchor view and target view using
+only the cross-entropy function. 3) Fine-tuning. We ﬁne-tune
+using momentum SGD, batch size 512, gradient clipping at
+global norm 1, and cosine learning rate schedule with a linear
+warmup. Note that the whole process of ﬁne-tuning does not
+use the data augmentation scheme or early-stopping strategy.
+Ablation study. We conduct several ablation experiments to
+demonstrate the effectiveness of each module. 1) The effective-
+ness of self-supervised algorithms. We perform two subtasks:
+
+=== PAGE 5 ===
+5
+TABLE II
+Overall performance of MedMNIST (v2) [Fully-supervised learning] IN METRICS OF AUC AND ACC, USING RESNET-18 / R ESNET-50 WITH
+RESOLUTION 28 AND 224, AUTO -SKLEARN , AUTO KERAS , GOOGLE AUTO ML V ISION , FPVT, M EDVIT, AND OURS .
+Methods PathMNIST ChestMNIST DermaMNIST OCTMNIST PneumoniaMNIST BloodMNISTAUC ACC AUC ACC AUC ACC AUC ACC AUC ACC AUC ACC
+ResNet-18 (28) 0.972 0.844 0.706 0.947 0.899 0.721 0.951 0.758 0.957 0.843 0.998 0.958
+ResNet-18 (224) 0.978 0.860 0.713 0.948 0.896 0.727 0.960 0.752 0.970 0.861 0.998 0.958
+ResNet-50 (28) 0.979 0.864 0.692 0.947 0.886 0.710 0.939 0.745 0.949 0.857 0.997 0.956
+ResNet-50 (224) 0.978 0.848 0.706 0.947 0.895 0.719 0.951 0.750 0.968 0.896 0.997 0.950
+auto-sklearn 0.500 0.186 0.647 0.642 0.906 0.734 0.883 0.595 0.947 0.865 0.984 0.878
+AutoKeras 0.979 0.864 0.715 0.939 0.921 0.756 0.956 0.736 0.970 0.918 0.998 0.961
+Google AutoML Vision 0.982 0.811 0.718 0.947 0.925 0.766 0.965 0.732 0.993 0.941 0.998 0.966
+FPVT 0.994 0.918 0.725 0.948 0.923 0.766 0.968 0.813 0.973 0.896 0.975 0.944
+MedVIT-T 0.994 0.938 0.786 0.956 0.914 0.768 0.961 0.767 0.993 0.949 0.996 0.950
+MedVIT-S 0.993 0.942 0.791 0.954 0.937 0.780 0.960 0.782 0.995 0.961 0.997 0.951
+MedVIT-L 0.984 0.933 0.805 0.959 0.920 0.773 0.945 0.761 0.991 0.921 0.996 0.954
+Ours 0.995 0.943 0.822 0.963 0.940 0.833 0.969 0.840 0.997 0.966 0.998 0.979
+Methods RetinaMNIST BreastMNIST OrganMNIST A OrganMNIST C OrganMNIST S TissueMNISTAUC ACC AUC ACC AUC ACC AUC ACC AUC ACC AUC ACC
+ResNet-18 (28) 0.727 0.515 0.897 0.859 0.995 0.921 0.990 0.889 0.967 0.762 0.930 0.676
+ResNet-18 (224) 0.721 0.543 0.915 0.878 0.997 0.931 0.991 0.907 0.974 0.777 0.933 0.681
+ResNet-50 (28) 0.719 0.490 0.879 0.853 0.995 0.916 0.990 0.893 0.968 0.746 0.931 0.680
+ResNet-50 (224) 0.717 0.555 0.863 0.833 0.997 0.931 0.992 0.898 0.970 0.770 0.932 0.680
+auto-sklearn 0.694 0.525 0.848 0.808 0.797 0.563 0.898 0.676 0.855 0.601 0.828 0.532
+AutoKeras 0.655 0.420 0.833 0.801 0.996 0.929 0.992 0.915 0.972 0.803 0.941 0.703
+Google AutoML Vision 0.762 0.530 0.932 0.865 0.988 0.818 0.986 0.861 0.964 0.706 0.924 0.673
+FPVT 0.753 0.568 0.938 0.891 0.997 0.935 0.993 0.903 0.976 0.785 0.923 0.717
+MedVIT-T 0.752 0.534 0.934 0.896 0.995 0.931 0.991 0.901 0.972 0.789 0.943 0.703
+MedVIT-S 0.773 0.561 0.938 0.897 0.996 0.928 0.993 0.916 0.987 0.805 0.952 0.731
+MedVIT-L 0.754 0.552 0.929 0.883 0.997 0.943 0.994 0.922 0.973 0.806 0.935 0.699
+Ours 0.777 0.570 0.939 0.899 0.997 0.951 0.993 0.917 0.977 0.810 0.944 0.739
+Methods OrganMNIST3D NoduleMNIST3D FractureMNIST3D AdrenalMNIST3D VesselMNIST3D SynapseMNIST3DAUC ACC AUC ACC AUC ACC AUC ACC AUC ACC AUC ACC
+ResNet-18 + 2.5D 0.977 0.788 0.838 0.835 0.587 0.451 0.718 0.772 0.748 0.846 0.634 0.696
+ResNet-18 + 3D 0.996 0.907 0.863 0.844 0.712 0.508 0.827 0.721 0.874 0.877 0.820 0.745
+ResNet-18 + ACS 0.994 0.900 0.873 0.847 0.714 0.497 0.839 0.754 0.930 0.928 0.705 0.722
+ResNet-50 + 2.5D 0.974 0.769 0.835 0.848 0.552 0.397 0.732 0.763 0.751 0.877 0.669 0.735
+ResNet-50 + 3D 0.994 0.883 0.875 0.847 0.725 0.494 0.828 0.745 0.907 0.918 0.851 0.795
+ResNet-50 + ACS 0.994 0.889 0.886 0.841 0.750 0.517 0.828 0.758 0.912 0.858 0.719 0.709
+auto-sklearn 0.977 0.814 0.914 0.874 0.628 0.453 0.828 0.802 0.910 0.915 0.631 0.730
+AutoKeras 0.979 0.804 0.844 0.834 0.642 0.458 0.804 0.705 0.773 0.894 0.538 0.724
+FPVT 0.923 0.800 0.814 0.822 0.640 0.438 0.801 0.704 0.770 0.888 0.530 0.712
+MedViT (T/S/L) - - - - - - - - - - - -
+Ours 0.995 0.912 0.915 0.860 0.729 0.660 0.969 0.801 0.932 0.940 0.866 0.820
+TABLE III
+Overall performance of MedMNIST (v2) [Semi-supervised learning] IN METRICS OF AUC AND ACC, USING RESNET-18 / R ESNET-50 WITH
+RESOLUTION 28 AND 224, AUTO -SKLEARN , AUTO KERAS , G OOGLE AUTO ML V ISION , FPVT AND OURS .
+Methods PathMNIST ChestMNIST DermaMNIST OCTMNIST PneumoniaMNIST BloodMNISTAUC ACC AUC ACC AUC ACC AUC ACC AUC ACC AUC ACC
+ResNet-18 (28) 0.673 0.522 0.616 0.643 0.709 0.539 0.641 0.728 0.737 0.533 0.540 0.608
+ResNet-18 (224) 0.630 0.501 0.638 0.649 0.511 0.532 0.644 0.794 0.634 0.509 0.428 0.302
+ResNet-50 (28) 0.399 0.411 0.426 0.575 0.677 0.536 0.467 0.541 0.637 0.500 0.522 0.608
+ResNet-50 (224) 0.333 0.522 0.616 0.640 0.709 0.499 0.297 0.598 0.563 0.337 0.524 0.608
+auto-sklearn 0.419 0.555 0.432 0.613 0.712 0.533 0.641 0.728 0.737 0.532 0.548 0.517
+AutoKeras 0.390 0.623 0.655 0.546 0.564 0.521 0.600 0.700 0.714 0.488 0.521 0.625
+Google AutoML Vision 0.477 0.499 0.510 0.511 0.399 0.300 0.246 0.533 0.637 0.530 0.622 0.678
+FPVT 0.699 0.539 0.689 0.687 0.641 0.588 0.659 0.660 0.788 0.435 0.441 0.638
+Ours 0.701 0.644 0.630 0.688 0.711 0.621 0.699 0.728 0.799 0.566 0.598 0.700
+without self-supervised learning (w/o ssl); without random
+masking (w/o rm). For without self-supervised learning, we
+only train the network at resolution 28 × 28 using AdamW
+withβ1 = 0.9,β2 = 0.999, linear learning rate warmup of 1000
+steps and linear decay, batch size 500. For without random
+masking, we only remove the random masking operation dur-
+ing the pre-training process. 2) The effectiveness of incentive
+learning (w/o il). We use a standard MLP-Mixer (we use a “B”
+
+=== PAGE 6 ===
+6
+TABLE IV
+Overall performance of MedMNIST (v2) [Weakly-supervised learning] IN METRICS OF AUC AND ACC, USING RESNET-18 / R ESNET-50 WITH
+RESOLUTION 28 AND 224, AUTO -SKLEARN , AUTO KERAS , GOOGLE AUTO ML V ISION , FPVT, M EDVIT, AND OURS .
+Methods PathMNIST ChestMNIST DermaMNIST OCTMNIST PneumoniaMNIST BloodMNISTAUC ACC AUC ACC AUC ACC AUC ACC AUC ACC AUC ACC
+ResNet-18 (28) 0.970 0.823 0.700 0.941 0.846 0.711 0.950 0.730 0.953 0.840 0.990 0.932
+ResNet-18 (224) 0.971 0.860 0.702 0.943 0.890 0.721 0.952 0.753 0.960 0.848 0.990 0.955
+ResNet-50 (28) 0.971 0.833 0.691 0.942 0.883 0.705 0.923 0.744 0.941 0.833 0.989 0.950
+ResNet-50 (224) 0.973 0.841 0.676 0.929 0.890 0.713 0.944 0.702 0.960 0.893 0.972 0.935
+auto-sklearn 0.444 0.386 0.640 0.625 0.886 0.730 0.843 0.591 0.940 0.863 0.982 0.870
+AutoKeras 0.951 0.860 0.711 0.932 0.910 0.755 0.950 0.731 0.965 0.911 0.994 0.950
+Google AutoML Vision 0.981 0.833 0.710 0.941 0.920 0.749 0.932 0.722 0.990 0.930 0.992 0.957
+FPVT 0.965 0.900 0.715 0.940 0.911 0.753 0.952 0.769 0.930 0.892 0.970 0.942
+Ours 0.992 0.939 0.816 0.959 0.931 0.826 0.966 0.835 0.988 0.960 0.992 0.989
+TABLE V
+Overall performance of MedMNIST (v2) [Ablation experiments] IN METRICS OF AUC AND ACC.
+Methods PathMNIST ChestMNIST DermaMNIST OCTMNIST PneumoniaMNIST BloodMNISTAUC ACC AUC ACC AUC ACC AUC ACC AUC ACC AUC ACC
+w/o ssl 0.990 0.941 0.819 0.952 0.938 0.831 0.969 0.832 0.990 0.962 0.996 0.970
+w/o rm 0.991 0.942 0.820 0.959 0.936 0.831 0.962 0.835 0.991 0.964 0.996 0.977
+w/o il 0.983 0.930 0.811 0.962 0.931 0.826 0.961 0.830 0.989 0.962 0.988 0.967
+w/o p(r) 0.994 0.942 0.820 0.961 0.938 0.830 0.962 0.835 0.995 0.962 0.992 0.978
+w/o p(i) 0.991 0.942 0.822 0.960 0.942 0.830 0.962 0.837 0.992 0.965 0.992 0.973
+Ours 0.995 0.943 0.822 0.963 0.940 0.833 0.969 0.840 0.997 0.966 0.998 0.979
+architecture) to replace C-Mixer. The imaginary component
+that is imposed on the learner is removed. 3) The effectiveness
+of Pearson curves (w/o p(r), w/o p(i)). We conduct two ops
+to replace p, one to keep only the real part and the other to
+keep only the imaginary part.
+(a) (b) (c)
+Fig. 2. This ﬁgure shows the data distribution of a raw image, corresponding
+to a pair of imaginary distributions. Among them (b) indicates the generated
+imaginary distribution when the prediction label is 1, and (c) indicates the
+generated imaginary distribution when the prediction label is 0. For the best
+visual representation, all numbers are normalized to [-3, 3].
+Discussion and analysis. Our proposed method achieves
+competitive performance on most of the data sets (including
+three types of tasks), however, one question still needs to
+be discussed, i.e. what kind of data distribution is provided
+by the imaginary space ( Ω)? Several samples are drawn to
+demonstrate the data distribution by applying the visualization
+function. As shown in Figure 2, we note that the distribution
+of imaginary numbers is symmetric concerning the distribution
+of real numbers (raw image), and the axis of symmetry is the
+label value. In general, the imaginary signal complements the
+distribution of information (non-standard normal distribution)
+that is symmetrical or not provided by the raw image.
+IV. T HE POTENTIAL OF ALGORITHMS .
+We conduct several experiments to demonstrate the potential
+of incentive learning and self-supervised learning.
+Incentive learning. The role of incentive learning is primarily
+demonstrated to complement the components of the input
+information such that the learning cost of the learner is
+reduced. We propose this learning paradigm which is very
+suitable for generating dense prediction tasks, such as exposure
+correction and dehazing, where we use U-Net [20] as the
+learner. The ﬁnal output of the network is still enforced
+with a generalized Pearson curve P to project into the real
+number ﬁeld. The U-Net is implemented in PyTorch 1.2
+and AdamW optimizer is used to train the network. We
+use the resolution 512 × 512 images with batch size 8
+to train the network, the learning rate is set to 0.001. We
+only use L1 for the loss function that is required to train
+the network. As shown in url https://www.researchgate.net/
+proﬁle/Zhuoran-Zheng?ev=hdr xprf, we show some examples
+of image enhancement. We observe that algorithms with
+imaginary complementary components are more advantageous
+in restoring color and texture, where the convolution operator
+of U-Net uses complex convolution. For a fair comparison,
+U-Net without complex convolution adds a large number of
+convolution operators (the convolution kernel is a 3 × 3
+with a step stride of 1) at the tail of the model to keep the
+computational power balanced.
+Self-supervised learning. Our proposed strategy is compared
+with Masked Siamese Network (MSN) [2] on several datasets.
+
+=== PAGE 7 ===
+7
+MSN is a self-supervised learning algorithm with prototype
+learning, but it only works with a random masking scheme
+enforced in the anchor view. We use a standard Vision Trans-
+former (ViT) [6] as the encoder. For the loss function, we
+use cross-entropy. Our proposed method with ViT vs. MSN
+with ViT is both pre-trained on the ImageNet dataset and then
+ﬁne-tuned to train on the CIFAR10 and CIFAR100 datasets
+in an end-to-end manner. Models transferred to CIFAR10
+and CIFAR100 are ﬁne-tuned for 1000 epochs using a batch
+size of 600 and a learning rate of 0.0001. We use the data
+augmentations deﬁned by RandAugment. For CIFAR10 and
+CIFAR100, our proposed method boosts the performance of
+MSN by 2% (ACC) compared to MSN, however, the AUC is
+slightly lower. The probable reason is that our method bears
+a higher degree of stochasticity (random masking) compared
+to MSN. Besides, by applying our method and MSN on the
+MNIST dataset (ﬁne-tuned in MNIST), the encoder is still
+a standard ViT. Here the training dataset of MNIST is only
+10% of the original dataset, which contains samples for each
+class. The experimental results show that our method is almost
+consistent with the MSN performance.
+V. R ELATED WORK
+MedMNIST classiﬁcation. Most of the medical image
+datasets are created with background knowledge from vision
+or medicine. This makes it difﬁcult for most algorithm engi-
+neers, and to avoid this problem, two versions of MedMNIST
+(v2) [27] are released one after another. To sound this com-
+munity, the developers leverage two models, ResNets [8] and
+AutoML [9], as the classiﬁcation algorithm for MedMNIST.
+Following that, FPVT [14] and MedViT [17] are proposed to
+establish a new baseline by modeling long ranges on medical
+images. In addition, MedMNIST is also used to evaluate the
+performance of the algorithm for federal learning tasks [16],
+[26]. Here, we use MedMNIST (v2) only for validating the
+learning ability of the network.
+Complex ﬁled learning. Recently, approaches based on mod-
+eling complex domains are mentioned [5], [11], [19], [25].
+These methods mainly involve representation by performing
+domain transformation on the input signal with the help of
+deep learning. To boost the performance of the classiﬁer, we
+consider modeling over the complex domain.
+Mixer network. MLP-Mixer [23] proposes a conceptually
+and technically simple architecture solely based on MLP
+layers. However, the standard MLP-Mixer performs weakly on
+medium-scale datasets (including ImageNet-1K and ImageNet-
+21K). To further boost the performance, a pure MLP archi-
+tecture is proposed for this network, called Res-MLP [24].
+gMLP [29] designs a gating operation to enhance the commu-
+nications between spatial locations and achieves a comparable
+recognition accuracy compared with Res-MLP. More advanced
+works [22], [28] adapt a hierarchical pyramid to enhance the
+representing power.
+Self-supervised learning. The goal of self-supervised learning
+is to allow the learner to still generalize well for training
+sets that contain little or noisy labeling. The typical methods
+are [3], [18], and [7], they aim to mine the common semantics
+of the input information. The current state-of-the-art model is
+MSN [2], which introduces mask learning.
+VI. C ONCLUSION
+In this paper, we alleviate two inherent drawbacks of
+MedNMIST (v2) effectively via the designed incentive learning
+and self-supervised learning methods with random masking.
+In addition, we use incentive learning to evaluate the image
+enhancement task with signiﬁcant gains and self-supervised
+learning with random masking with great potential. Extensive
+experimental results show that our method performs well on
+supervised tasks, weakly supervised tasks, and dense predic-
+tion tasks. In future work, we apply this new machine learning
+paradigm to more generative or inferential tasks.
+REFERENCES
+[1] Syed Muhammad Anwar, Muhammad Majid, Adnan Qayyum, Muham-
+mad Awais, Majdi Alnowami, and Muhammad Khurram Khan. Medical
+image analysis using convolutional neural networks: a review. Journal
+of medical systems , 2018.
+[2] Mahmoud Assran and Mathilde Caron. Masked siamese networks for
+label-efﬁcient learning. In ECCV, 2022.
+[3] Alexei Baevski, Wei-Ning Hsu, Qiantong Xu, Arun Babu, Jiatao Gu,
+and Michael Auli. Data2vec: A general framework for self-supervised
+learning in speech, vision and language. In ICML, 2022.
+[4] Hu Cao, Yueyue Wang, Joy Chen, Dongsheng Jiang, Xiaopeng Zhang,
+Qi Tian, and Manning Wang. Swin-unet: Unet-like pure transformer for
+medical image segmentation. In ECCVW, 2022.
+[5] Hyeong-Seok Choi, Jang-Hyun Kim, Jaesung Huh, Adrian Kim, Jung-
+Woo Ha, and Kyogu Lee. Phase-aware speech enhancement with deep
+complex u-net. In ICLR, 2019.
+[6] Alexey Dosovitskiy, Lucas Beyer, Kolesnikov, et al. An image is worth
+16x16 words: Transformers for image recognition at scale. In ICLR,
+2021.
+[7] Ahmed Elnaggar, Michael Heinzinger, Christian Dallago, Rehawi, et al.
+Prottrans: Toward understanding the language of life through self-
+supervised learning. TPAMI, 2021.
+[8] Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. Deep
+residual learning for image recognition. In CVPR, 2016.
+[9] Xin He, Kaiyong Zhao, and Xiaowen Chu. Automl: A survey of the
+state-of-the-art. KBS, 2021.
+[10] Yanxin Hu, Yun Liu, Shubo Lv, Mengtao Xing, Shimin Zhang, Yihui
+Fu, Jian Wu, Bihong Zhang, and Lei Xie. DCCRN: deep complex
+convolution recurrent network for phase-aware speech enhancement. In
+Interspeech, 2020.
+[11] Yanxin Hu, Yun Liu, Shubo Lv, Mengtao Xing, Shimin Zhang, Yihui Fu,
+Jian Wu, Bihong Zhang, and Lei Xie. Dccrn: Deep complex convolution
+recurrent network for phase-aware speech enhancement. In ICASSP,
+2020.
+[12] Peng Jiang, Juan Liu, Lang Wang, Zhihui Ynag, Hongyu Dong, and
+Jing Feng. Deeply supervised layer selective attention network: Towards
+label-efﬁcient learning for medical image classiﬁcation. arXiv preprint
+arXiv:2209.13844, 2022.
+[13] Xuelong Li. Positive-incentive noise. TNNLS, 2022.
+[14] Jinwei Liu, Yan Li, Guitao Cao, Yong Liu, and Wenming Cao. Feature
+pyramid vision transformer for medmnist classiﬁcation decathlon. In
+IJCNN, pages 1–8, 2022.
+[15] Ilya Loshchilov and Frank Hutter. Fixing weight decay regularization
+in adam. In ICLR, 2017.
+[16] Charles Lu and Jayasheree Kalpathy-Cramer. Distribution-free federated
+learning with conformal predictions. arXiv preprint arXiv:2110.07661 ,
+2021.
+[17] Omid Nejati Manzari, Hamid Ahmadabadi, Hossein Kashiani,
+Shahriar B Shokouhi, and Ahmad Ayatollahi. Medvit: A robust vision
+transformer for generalized medical image classiﬁcation. arXiv preprint
+arXiv:2302.09462, 2023.
+[18] Ishan Misra and Laurens van der Maaten. Self-supervised learning of
+pretext-invariant representations. In CVPR, 2020.
+[19] Yuhui Quan, Yixin Chen, Yizhen Shao, Huan Teng, Yong Xu, and Hui
+Ji. Image denoising using complex-valued deep cnn. PR, 2021.
+[20] Olaf Ronneberger, Philipp Fischer, and Thomas Brox. U-net: Convolu-
+tional networks for biomedical image segmentation. In MICCAI, 2015.
+
+=== PAGE 8 ===
+8
+[21] Dinggang Shen, Guorong Wu, and Heung-Il Suk. Deep learning in
+medical image analysis. Annual review of biomedical engineering, 2017.
+[22] Zhenhua Tang, Jia Li, Yanbin Hao, and Richang Hong. Mlp-jcg: Multi-
+layer perceptron with joint-coordinate gating for efﬁcient 3d human pose
+estimation. IEEE Transactions on Multimedia , 2023.
+[23] Ilya O. Tolstikhin, Neil Houlsby, Alexander Kolesnikov, and Lucas
+Beyer. Mlp-mixer: An all-mlp architecture for vision. In NIPS, 2021.
+[24] Hugo Touvron, Piotr Bojanowski, Mathilde Caron, Cord, et al. Resmlp:
+Feedforward networks for image classiﬁcation with data-efﬁcient train-
+ing. TPAMI, 2022.
+[25] Chiheb Trabelsi, Olexa Bilaniuk, Ying Zhang, and Serdyuk. Deep
+complex networks. arXiv preprint arXiv:1705.09792 , 2017.
+[26] Ching-Hao Wang, Kang-Yang Huang, Jun-Cheng Chen, Hong-Han
+Shuai, and Wen-Huang Cheng. Heterogeneous federated learning
+through multi-branch network. In ICME, 2021.
+[27] Jiancheng Yang, Rui Shi, Donglai Wei, Zequan Liu, Lin Zhao, Bilian
+Ke, Hanspeter Pﬁster, and Bingbing Ni. Medmnist v2-a large-scale
+lightweight benchmark for 2d and 3d biomedical image classiﬁcation.
+Scientiﬁc Data, 2023.
+[28] Tan Yu, Xu Li, Yunfeng Cai, Mingming Sun, and Ping Li. S2-mlp:
+Spatial-shift mlp architecture for vision. In CVPR, 2022.
+[29] Wentao Zhang, Yu Shen, Zheyu Lin, Yang Li, Xiaosen Li, Wen Ouyang,
+Yangyu Tao, Zhi Yang, and Bin Cui. Gmlp: Building scalable and
+ﬂexible graph neural networks with feature-message passing. arXiv
+preprint arXiv:2104.09880, 2021.
+[30] Zhi-Hua Zhou. Machine learning. 2021.

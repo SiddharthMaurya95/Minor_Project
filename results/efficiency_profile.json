@@ -1,0 +1,47 @@
+{
+  "PhySSL-Net": {
+    "params": 46294,
+    "params_k": 46.29,
+    "macs_proxy": 9073624,
+    "gpu_latency_ms": 3.091,
+    "cpu_latency_ms": 1.655,
+    "test_acc": 0.8388,
+    "is_proposed": true
+  },
+  "C-Mixer": {
+    "params": 277156,
+    "params_k": 277.16,
+    "macs_proxy": 54322576,
+    "gpu_latency_ms": 9.474,
+    "cpu_latency_ms": 2.943,
+    "test_acc": 0.82,
+    "is_proposed": false
+  },
+  "Vanilla CNN": {
+    "params": 65314,
+    "params_k": 65.31,
+    "macs_proxy": 12801544,
+    "gpu_latency_ms": 1.028,
+    "cpu_latency_ms": 0.807,
+    "test_acc": 0.8526,
+    "is_proposed": false
+  },
+  "VGG16Small": {
+    "params": 894498,
+    "params_k": 894.5,
+    "macs_proxy": 175321608,
+    "gpu_latency_ms": 2.132,
+    "cpu_latency_ms": 2.117,
+    "test_acc": 0.82,
+    "is_proposed": false
+  },
+  "ResNet50V2Small": {
+    "params": 751522,
+    "params_k": 751.52,
+    "macs_proxy": 147298312,
+    "gpu_latency_ms": 11.061,
+    "cpu_latency_ms": 6.539,
+    "test_acc": 0.82,
+    "is_proposed": false
+  }
+}

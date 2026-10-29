@@ -1,0 +1,35 @@
+{
+  "accuracy": 0.7788461538461539,
+  "roc_auc": 0.9600262984878369,
+  "precision": 0.7386363636363636,
+  "recall": 1.0,
+  "sensitivity": 1.0,
+  "specificity": 0.41025641025641024,
+  "f1": 0.8496732026143791,
+  "confusion_matrix": [
+    [
+      96,
+      138
+    ],
+    [
+      0,
+      390
+    ]
+  ],
+  "tp": 390,
+  "tn": 96,
+  "fp": 138,
+  "fn": 0,
+  "model_name": "vanilla_cnn",
+  "dataset": "pneumoniamnist",
+  "split": "test",
+  "seed": 42,
+  "label_fraction": 0.5,
+  "num_parameters": 65314,
+  "latency_ms_per_sample": 0.109,
+  "throughput_fps": 9211.3,
+  "threshold": 0.5,
+  "tta_applied": false,
+  "logit_adj_applied": false,
+  "checkpoint_path": "./checkpoints/vanilla_cnn_pneumoniamnist_frac50_seed42_best.pth"
+}
