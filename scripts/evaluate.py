@@ -12,7 +12,7 @@ import torch.nn as nn
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from data.dataset import build_dataloaders
 from models.physsl_net import PhySSLNet
-from models.baselines import VanillaCNN, VGG16Small, ResNet50V2Small
+from models.baselines import VanillaCNN, VGG16Small, ResNet50V2Small, ConvNeXtFemto
 from evaluation.metrics import compute_metrics, apply_logit_adjustment, find_optimal_threshold
 
 
@@ -32,6 +32,8 @@ def build_model(model_name, in_channels, num_classes):
         return VGG16Small(in_channels=in_channels, num_classes=num_classes)
     elif "resnet50" in model_name:
         return ResNet50V2Small(in_channels=in_channels, num_classes=num_classes)
+    elif "convnext" in model_name:
+        return ConvNeXtFemto(in_channels=in_channels, num_classes=num_classes)
     else:
         return PhySSLNet(in_channels=in_channels, num_classes=num_classes)
 

@@ -26,7 +26,7 @@ import torchvision.transforms as T
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from data.dataset import build_dataloaders
 from models.physsl_net import PhySSLNet
-from models.baselines import VanillaCNN, VGG16Small, ResNet50V2Small
+from models.baselines import VanillaCNN, VGG16Small, ResNet50V2Small, ConvNeXtFemto
 from evaluation.metrics import compute_metrics
 
 
@@ -56,6 +56,8 @@ def build_model(model_name, in_channels, num_classes, dropout=0.2):
         return VGG16Small(in_channels=in_channels, num_classes=num_classes, dropout=dropout)
     elif model_name == "resnet50v2":
         return ResNet50V2Small(in_channels=in_channels, num_classes=num_classes, dropout=dropout)
+    elif "convnext" in model_name:
+        return ConvNeXtFemto(in_channels=in_channels, num_classes=num_classes, dropout=dropout)
     else:
         raise ValueError(f"Unknown model name: {model_name}")
 

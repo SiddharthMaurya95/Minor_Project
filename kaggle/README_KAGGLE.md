@@ -1,6 +1,6 @@
 # Kaggle Free Tier Execution Guide: PhySSL-Net on MedMNIST (TPU v5e-8 & GPU)
 
-This folder provides self-contained benchmark files ready to run on Kaggle's free compute tier with full acceleration for **Google Cloud TPU v5e-8 / TPU v3-8** or **NVIDIA Tesla P100 / Dual T4** to benchmark **PhySSL-Net** against all 3 baseline architectures (**Vanilla CNN**, **VGG16**, **ResNet50V2**) across the MedMNIST v2 suite.
+This folder provides self-contained benchmark files ready to run on Kaggle's free compute tier with full acceleration for **Google Cloud TPU v5e-8 / TPU v3-8** or **NVIDIA Tesla P100 / Dual T4** to benchmark **PhySSL-Net** against 4 baseline architectures (**Vanilla CNN**, **VGG16**, **ResNet50V2**, and **ConvNeXt-Femto** [CVPR 2022]) across the MedMNIST v2 suite.
 
 ---
 
@@ -71,7 +71,7 @@ SELECTED_DATASETS = ['pneumoniamnist', 'dermamnist', 'breastmnist', 'bloodmnist'
 #     'pathmnist', 'octmnist', 'tissuemnist'
 # ]
 
-MODELS = ['physsl_net', 'vanilla_cnn', 'vgg16', 'resnet50v2']
+MODELS = ['physsl_net', 'convnext_femto', 'vanilla_cnn', 'vgg16', 'resnet50v2']
 EPOCHS = 15
 BATCH_SIZE = 256  # Saturated for Cloud TPU v5e-8
 ```

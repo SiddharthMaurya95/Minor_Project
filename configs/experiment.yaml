@@ -105,6 +105,14 @@ model_recipes:
     scheduler: "cosine"
     epochs: 25
     early_stopping_patience: 8
+  convnext_femto:
+    description: "ConvNeXt-Femto (CVPR 2022) modern pure-CNN baseline (~109k params)"
+    optimizer: "adamw"
+    lr: 0.001
+    weight_decay: 0.0001
+    scheduler: "cosine"
+    epochs: 25
+    early_stopping_patience: 8
   physsl_net:
     description: "Proposed PhySSL-Net fine-tuning recipe"
     optimizer: "adamw"
@@ -139,6 +147,7 @@ baselines:
   - "vgg16"
   - "resnet50v2"
   - "vanilla_cnn"
+  - "convnext_femto"
 
 # Architectural Ablations
 ablations:

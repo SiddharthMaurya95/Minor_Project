@@ -3,6 +3,7 @@ Baseline Architectures for Medical Image Classification Benchmark:
 1. Vanilla CNN (4-layer Convolutional Network)
 2. VGG16 (Adapted with BatchNorm for 28x28 medical images)
 3. ResNet50V2 (Adapted Pre-activation ResNet for 28x28 medical images)
+4. ConvNeXt-Femto (CVPR 2022 modern pure-CNN baseline adapted for 28x28 medical images)
 """
 
 import torch
@@ -179,3 +180,112 @@ class ResNet50V2Small(nn.Module):
         feat = self.extract_features(x)
         logits = self.classifier(feat)
         return logits
+
+# ==============================================================================
+# 4. ConvNeXt-Femto Baseline (Liu et al., CVPR 2022)
+# ==============================================================================
+class LayerNormChannelsFirst(nn.Module):
+    """
+    LayerNorm that supports (B, C, H, W) channels-first format.
+    """
+    def __init__(self, normalized_shape, eps=1e-6):
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(normalized_shape))
+        self.bias = nn.Parameter(torch.zeros(normalized_shape))
+        self.eps = eps
+
+    def forward(self, x):
+        u = x.mean(1, keepdim=True)
+        s = (x - u).pow(2).mean(1, keepdim=True)
+        x = (x - u) / torch.sqrt(s + self.eps)
+        x = self.weight[:, None, None] * x + self.bias[:, None, None]
+        return x
+
+
+class ConvNeXtBlock(nn.Module):
+    """
+    ConvNeXt Block (Liu et al., CVPR 2022).
+    Structure:
+    1. 7x7 Depthwise Conv
+    2. LayerNorm (channels-first)
+    3. 1x1 Pointwise Conv (inverted bottleneck expansion 4x)
+    4. GELU
+    5. 1x1 Pointwise Conv (projection back to C)
+    6. LayerScale (gamma parameter)
+    7. Residual shortcut
+    """
+    def __init__(self, dim, layer_scale_init_value=1e-6):
+        super().__init__()
+        self.dwconv = nn.Conv2d(dim, dim, kernel_size=7, padding=3, groups=dim)
+        self.norm = LayerNormChannelsFirst(dim, eps=1e-6)
+        self.pwconv1 = nn.Conv2d(dim, 4 * dim, kernel_size=1)
+        self.act = nn.GELU()
+        self.pwconv2 = nn.Conv2d(4 * dim, dim, kernel_size=1)
+        self.gamma = nn.Parameter(layer_scale_init_value * torch.ones((dim, 1, 1)),
+                                  requires_grad=True) if layer_scale_init_value > 0 else None
+
+    def forward(self, x):
+        input = x
+        x = self.dwconv(x)
+        x = self.norm(x)
+        x = self.pwconv1(x)
+        x = self.act(x)
+        x = self.pwconv2(x)
+        if self.gamma is not None:
+            x = self.gamma * x
+        return input + x
+
+
+class ConvNeXtFemto(nn.Module):
+    """
+    ConvNeXt-Femto (CVPR 2022 baseline adapted for 28x28 medical images).
+    - Lightweight, modern pure convolutional architecture (~109k parameters).
+    - Depths: [2, 2, 2] across 3 stages
+    - Channel dimensions: [16, 32, 64]
+    - Inverted bottleneck with 7x7 depthwise convolutions and LayerScale.
+    """
+    def __init__(self, in_channels=1, num_classes=2, depths=[2, 2, 2], dims=[16, 32, 64], dropout=0.2):
+        super().__init__()
+        self.downsample_layers = nn.ModuleList()
+        # Stem: 28x28 -> 28x28 (stride 1 for small 28x28 inputs)
+        stem = nn.Sequential(
+            nn.Conv2d(in_channels, dims[0], kernel_size=3, padding=1),
+            LayerNormChannelsFirst(dims[0], eps=1e-6)
+        )
+        self.downsample_layers.append(stem)
+
+        # Downsample stages: 28x28 -> 14x14 -> 7x7
+        for i in range(len(dims) - 1):
+            downsample_layer = nn.Sequential(
+                LayerNormChannelsFirst(dims[i], eps=1e-6),
+                nn.Conv2d(dims[i], dims[i + 1], kernel_size=2, stride=2),
+            )
+            self.downsample_layers.append(downsample_layer)
+
+        # Stages with ConvNeXt blocks
+        self.stages = nn.ModuleList()
+        for i in range(len(dims)):
+            stage = nn.Sequential(*[ConvNeXtBlock(dim=dims[i]) for _ in range(depths[i])])
+            self.stages.append(stage)
+
+        self.norm = LayerNormChannelsFirst(dims[-1], eps=1e-6)
+        self.gap = nn.AdaptiveAvgPool2d((1, 1))
+        self.classifier = nn.Sequential(
+            nn.Dropout(p=dropout),
+            nn.Linear(dims[-1], num_classes)
+        )
+
+    def extract_features(self, x):
+        for i in range(len(self.downsample_layers)):
+            x = self.downsample_layers[i](x)
+            x = self.stages[i](x)
+        x = self.norm(x)
+        return self.gap(x).flatten(1)
+
+    def forward(self, x):
+        feat = self.extract_features(x)
+        return self.classifier(feat)
+
+
+__all__ = ['VanillaCNN', 'VGG16Small', 'ResNet50V2Small', 'ConvNeXtFemto', 'ConvNeXtBlock', 'LayerNormChannelsFirst']
+

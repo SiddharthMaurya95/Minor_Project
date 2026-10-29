@@ -14,7 +14,7 @@ import torch.nn as nn
 import pytest
 
 from models.physsl_net import PhySSLNet, PhySSLSimSiam, IntensityRBF, BandPassBlock, CurvatureAttention, GlobalTokenMixer
-from models.baselines import VanillaCNN, VGG16Small, ResNet50V2Small
+from models.baselines import VanillaCNN, VGG16Small, ResNet50V2Small, ConvNeXtFemto
 
 
 def test_intensity_rbf():
@@ -248,6 +248,7 @@ def test_curvature_attention_constant_input():
     (VanillaCNN, 65314),
     (VGG16Small, 894498),
     (ResNet50V2Small, 751522),
+    (ConvNeXtFemto, 109890),
 ])
 def test_baseline_exact_parameter_counts(model_cls, expected_params):
     """Verify exact parameter counts for all four baseline architectures."""
@@ -256,7 +257,7 @@ def test_baseline_exact_parameter_counts(model_cls, expected_params):
     assert params == expected_params, f"{model_cls.__name__} expected {expected_params} params, got {params}"
 
 
-@pytest.mark.parametrize("model_cls", [VanillaCNN, VGG16Small, ResNet50V2Small])
+@pytest.mark.parametrize("model_cls", [VanillaCNN, VGG16Small, ResNet50V2Small, ConvNeXtFemto])
 def test_baseline_checkpoint_saving_reloading(model_cls):
     """Verify state_dict checkpoint saving, reloading, and numerical consistency for all baselines."""
     model = model_cls(in_channels=1, num_classes=2)
@@ -286,6 +287,7 @@ def test_baseline_checkpoint_saving_reloading(model_cls):
     (VanillaCNN, 64),
     (VGG16Small, 128),
     (ResNet50V2Small, 256),
+    (ConvNeXtFemto, 64),
 ])
 def test_baseline_feature_extraction(model_cls, expected_dim):
     """Verify extract_features produces correct latent representations across all baselines."""
@@ -298,7 +300,7 @@ def test_baseline_feature_extraction(model_cls, expected_dim):
     assert torch.isfinite(feats).all()
 
 
-@pytest.mark.parametrize("model_cls", [VanillaCNN, VGG16Small, ResNet50V2Small])
+@pytest.mark.parametrize("model_cls", [VanillaCNN, VGG16Small, ResNet50V2Small, ConvNeXtFemto])
 def test_baseline_multichannel_and_multiclass(model_cls):
     """Verify baselines support 3 input channels and multiclass settings (DermaMNIST 7 classes, PathMNIST 9 classes)."""
     # DermaMNIST: 3 channels, 7 classes
@@ -316,7 +318,7 @@ def test_baseline_multichannel_and_multiclass(model_cls):
     assert torch.isfinite(out_path).all()
 
 
-@pytest.mark.parametrize("model_cls", [VanillaCNN, VGG16Small, ResNet50V2Small])
+@pytest.mark.parametrize("model_cls", [VanillaCNN, VGG16Small, ResNet50V2Small, ConvNeXtFemto])
 def test_baseline_gradient_flow(model_cls):
     """Verify that every trainable parameter in each baseline receives valid non-zero gradients."""
     model = model_cls(in_channels=1, num_classes=2)

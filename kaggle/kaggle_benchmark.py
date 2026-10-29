@@ -285,6 +285,85 @@ class ResNet50V2Small(nn.Module):
         feat = self.extract_features(x)
         return self.classifier(feat)
 
+class LayerNormChannelsFirst(nn.Module):
+    def __init__(self, normalized_shape, eps=1e-6):
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(normalized_shape))
+        self.bias = nn.Parameter(torch.zeros(normalized_shape))
+        self.eps = eps
+
+    def forward(self, x):
+        u = x.mean(1, keepdim=True)
+        s = (x - u).pow(2).mean(1, keepdim=True)
+        x = (x - u) / torch.sqrt(s + self.eps)
+        x = self.weight[:, None, None] * x + self.bias[:, None, None]
+        return x
+
+class ConvNeXtBlock(nn.Module):
+    def __init__(self, dim, layer_scale_init_value=1e-6):
+        super().__init__()
+        self.dwconv = nn.Conv2d(dim, dim, kernel_size=7, padding=3, groups=dim)
+        self.norm = LayerNormChannelsFirst(dim, eps=1e-6)
+        self.pwconv1 = nn.Conv2d(dim, 4 * dim, kernel_size=1)
+        self.act = nn.GELU()
+        self.pwconv2 = nn.Conv2d(4 * dim, dim, kernel_size=1)
+        self.gamma = nn.Parameter(layer_scale_init_value * torch.ones((dim, 1, 1)),
+                                  requires_grad=True) if layer_scale_init_value > 0 else None
+
+    def forward(self, x):
+        input = x
+        x = self.dwconv(x)
+        x = self.norm(x)
+        x = self.pwconv1(x)
+        x = self.act(x)
+        x = self.pwconv2(x)
+        if self.gamma is not None:
+            x = self.gamma * x
+        return input + x
+
+class ConvNeXtFemto(nn.Module):
+    """
+    ConvNeXt-Femto (CVPR 2022 modern pure-CNN baseline, ~109k parameters):
+    Adapted for 28x28 medical images with 3 stages [16, 32, 64] and depths [2, 2, 2].
+    """
+    def __init__(self, in_channels=1, num_classes=2, depths=[2, 2, 2], dims=[16, 32, 64], dropout=0.2):
+        super().__init__()
+        self.downsample_layers = nn.ModuleList()
+        stem = nn.Sequential(
+            nn.Conv2d(in_channels, dims[0], kernel_size=3, padding=1),
+            LayerNormChannelsFirst(dims[0], eps=1e-6)
+        )
+        self.downsample_layers.append(stem)
+        for i in range(len(dims) - 1):
+            downsample_layer = nn.Sequential(
+                LayerNormChannelsFirst(dims[i], eps=1e-6),
+                nn.Conv2d(dims[i], dims[i + 1], kernel_size=2, stride=2),
+            )
+            self.downsample_layers.append(downsample_layer)
+
+        self.stages = nn.ModuleList()
+        for i in range(len(dims)):
+            stage = nn.Sequential(*[ConvNeXtBlock(dim=dims[i]) for _ in range(depths[i])])
+            self.stages.append(stage)
+
+        self.norm = LayerNormChannelsFirst(dims[-1], eps=1e-6)
+        self.gap = nn.AdaptiveAvgPool2d((1, 1))
+        self.classifier = nn.Sequential(
+            nn.Dropout(p=dropout),
+            nn.Linear(dims[-1], num_classes)
+        )
+
+    def extract_features(self, x):
+        for i in range(len(self.downsample_layers)):
+            x = self.downsample_layers[i](x)
+            x = self.stages[i](x)
+        x = self.norm(x)
+        return self.gap(x).flatten(1)
+
+    def forward(self, x):
+        feat = self.extract_features(x)
+        return self.classifier(feat)
+
 
 # ==========================================
 # 2. DATA LOADERS & DATASET WRAPPER
@@ -460,6 +539,8 @@ def train_and_eval(model_name, dataset_info, epochs=15, lr=1e-3):
         model = VGG16Small(in_channels=in_channels, num_classes=num_classes).to(device)
     elif model_name == "resnet50v2":
         model = ResNet50V2Small(in_channels=in_channels, num_classes=num_classes).to(device)
+    elif model_name == "convnext_femto":
+        model = ConvNeXtFemto(in_channels=in_channels, num_classes=num_classes).to(device)
 
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
@@ -587,7 +668,7 @@ if __name__ == "__main__":
     ]
 
     selected_datasets = all_2d if "all" in args.datasets else args.datasets
-    models = ["physsl_net", "vanilla_cnn", "vgg16", "resnet50v2"]
+    models = ["physsl_net", "convnext_femto", "vanilla_cnn", "vgg16", "resnet50v2"]
 
     records = []
     print(f"\n=================================================================")

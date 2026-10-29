@@ -16,7 +16,7 @@ import torch.nn as nn
 # Add project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from models.physsl_net import PhySSLNet, PhySSLSimSiam
-from models.baselines import VanillaCNN, VGG16Small, ResNet50V2Small
+from models.baselines import VanillaCNN, VGG16Small, ResNet50V2Small, ConvNeXtFemto
 
 
 def count_parameters(model):
@@ -91,6 +91,9 @@ def run_model_checks(device="cuda" if torch.cuda.is_available() else "cpu"):
 
     resnet50 = ResNet50V2Small(in_channels=C, num_classes=2).to(device)
     test_model_forward_backward("ResNet50V2Small Baseline", resnet50, x)
+
+    convnext = ConvNeXtFemto(in_channels=C, num_classes=2).to(device)
+    test_model_forward_backward("ConvNeXtFemto Baseline", convnext, x)
 
     print("\n=======================================================")
     print("[PASSED] ALL MODEL ARCHITECTURES PASSED INTEGRITY TESTS")
