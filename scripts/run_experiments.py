@@ -26,7 +26,7 @@ import torch
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from data.dataset import build_dataloaders
 from models.physsl_net import PhySSLNet, PhySSLSimSiam
-from models.baselines import VanillaCNN, VGG16Small, ResNet50V2Small
+from models.baselines import VanillaCNN, VGG16Small, ResNet50V2Small, ConvNeXtFemto
 from scripts.pretrain_ssl import pretrain_ssl
 from scripts.train import train_model
 from scripts.evaluate import evaluate_checkpoint, build_model
@@ -106,6 +106,7 @@ def run_full_experiment_suite(dataset_name="pneumoniamnist", epochs=15, ssl_epoc
     MODELS_TO_BENCHMARK = [
         "physsl_net_ssl",  # Pretrained + Fine-Tuned
         "physsl_net_scratch", # Scratch
+        "convnext_femto",
         "vanilla_cnn",
         "vgg16",
         "resnet50v2",
@@ -286,6 +287,7 @@ def run_full_experiment_suite(dataset_name="pneumoniamnist", epochs=15, ssl_epoc
 
     model_instances = {
         'PhySSL-Net': PhySSLNet(in_channels=1, num_classes=2),
+        'ConvNeXt-Femto': ConvNeXtFemto(in_channels=1, num_classes=2),
         'Vanilla CNN': VanillaCNN(in_channels=1, num_classes=2),
         'VGG16Small': VGG16Small(in_channels=1, num_classes=2),
         'ResNet50V2Small': ResNet50V2Small(in_channels=1, num_classes=2),
@@ -294,7 +296,8 @@ def run_full_experiment_suite(dataset_name="pneumoniamnist", epochs=15, ssl_epoc
     for name, inst in model_instances.items():
         eff = profile_model_efficiency(inst, device=device)
         # Pull mean test accuracy from benchmark records
-        key = "physsl_net_ssl" if name == "PhySSL-Net" else ("vanilla_cnn" if name == "Vanilla CNN" else name.lower())
+        model_key_map = {'PhySSL-Net': 'physsl_net_ssl', 'ConvNeXt-Femto': 'convnext_femto', 'Vanilla CNN': 'vanilla_cnn', 'VGG16Small': 'vgg16', 'ResNet50V2Small': 'resnet50v2'}
+        key = model_key_map.get(name, name.lower())
         records = benchmark_records.get(key, [])
         mean_acc = np.mean([r['accuracy'] for r in records]) if records else 0.82
         eff['test_acc'] = round(float(mean_acc), 4)
@@ -313,7 +316,7 @@ def run_full_experiment_suite(dataset_name="pneumoniamnist", epochs=15, ssl_epoc
 
     y_test_ground_truth, physsl_preds = test_predictions_by_model['physsl_net_ssl']
 
-    for comp_model in ['vanilla_cnn', 'vgg16', 'resnet50v2']:
+    for comp_model in ['convnext_femto', 'vanilla_cnn', 'vgg16', 'resnet50v2']:
         _, baseline_preds = test_predictions_by_model[comp_model]
         mcnemar_res = mcnemar_test(y_test_ground_truth, physsl_preds, baseline_preds)
         mcnemar_comparisons[f"PhySSL-Net vs {comp_model}"] = mcnemar_res

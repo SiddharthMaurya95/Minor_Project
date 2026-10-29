@@ -1,80 +1,54 @@
 {
-  "PhySSL-Net (Seed 123) vs vanilla_cnn": {
-    "statistic": 13.288135593220339,
-    "p_value": 0.00026709095368374297,
+  "PhySSL-Net vs convnext_femto": {
+    "statistic": 0.0975609756097561,
+    "p_value": 0.7547764265871045,
+    "contingency": {
+      "both_correct": 524,
+      "a_correct_b_wrong": 22,
+      "b_correct_a_wrong": 19,
+      "both_wrong": 59
+    },
+    "significant_05": false,
+    "significant_01": false,
+    "interpretation": "p-value = 7.5478e-01 (No statistically significant difference)."
+  },
+  "PhySSL-Net vs vanilla_cnn": {
+    "statistic": 1.2894736842105263,
+    "p_value": 0.25614496660352326,
     "contingency": {
       "both_correct": 523,
-      "a_correct_b_wrong": 44,
+      "a_correct_b_wrong": 23,
       "b_correct_a_wrong": 15,
-      "both_wrong": 42
+      "both_wrong": 63
     },
-    "significant_05": true,
-    "significant_01": true,
-    "interpretation": "p-value = 2.6709e-04 (Statistically significant)."
+    "significant_05": false,
+    "significant_01": false,
+    "interpretation": "p-value = 2.5614e-01 (No statistically significant difference)."
   },
-  "PhySSL-Net (Seed 123) vs vgg16": {
-    "statistic": 16.78688524590164,
-    "p_value": 4.1821342001616925e-05,
+  "PhySSL-Net vs vgg16": {
+    "statistic": 3.025,
+    "p_value": 0.08199032100038259,
     "contingency": {
       "both_correct": 520,
-      "a_correct_b_wrong": 47,
+      "a_correct_b_wrong": 26,
       "b_correct_a_wrong": 14,
-      "both_wrong": 43
+      "both_wrong": 64
     },
-    "significant_05": true,
-    "significant_01": true,
-    "interpretation": "p-value = 4.1821e-05 (Statistically significant)."
+    "significant_05": false,
+    "significant_01": false,
+    "interpretation": "p-value = 8.1990e-02 (No statistically significant difference)."
   },
-  "PhySSL-Net (Seed 123) vs resnet50v2": {
-    "statistic": 17.5,
-    "p_value": 2.873076843491046e-05,
-    "contingency": {
-      "both_correct": 514,
-      "a_correct_b_wrong": 53,
-      "b_correct_a_wrong": 17,
-      "both_wrong": 40
-    },
-    "significant_05": true,
-    "significant_01": true,
-    "interpretation": "p-value = 2.8731e-05 (Statistically significant)."
-  },
-  "PhySSL-Net (5-Seed Ensemble) vs vanilla_cnn": {
-    "statistic": 9.75609756097561,
-    "p_value": 0.0017872890369872703,
-    "contingency": {
-      "both_correct": 528,
-      "a_correct_b_wrong": 31,
-      "b_correct_a_wrong": 10,
-      "both_wrong": 55
-    },
-    "significant_05": true,
-    "significant_01": true,
-    "interpretation": "p-value = 1.7873e-03 (Statistically significant)."
-  },
-  "PhySSL-Net (5-Seed Ensemble) vs vgg16": {
-    "statistic": 12.25531914893617,
-    "p_value": 0.000463933798350804,
-    "contingency": {
-      "both_correct": 523,
-      "a_correct_b_wrong": 36,
-      "b_correct_a_wrong": 11,
-      "both_wrong": 54
-    },
-    "significant_05": true,
-    "significant_01": true,
-    "interpretation": "p-value = 4.6393e-04 (Statistically significant)."
-  },
-  "PhySSL-Net (5-Seed Ensemble) vs resnet50v2": {
-    "statistic": 12.15,
-    "p_value": 0.0004908786448402841,
+  "PhySSL-Net vs resnet50v2": {
+    "statistic": 4.170212765957447,
+    "p_value": 0.041140632972026185,
     "contingency": {
       "both_correct": 515,
-      "a_correct_b_wrong": 44,
+      "a_correct_b_wrong": 31,
       "b_correct_a_wrong": 16,
-      "both_wrong": 49
+      "both_wrong": 62
     },
     "significant_05": true,
-    "significant_01": true,
-    "interpretation": "p-value = 4.9088e-04 (Statistically significant)."
+    "significant_01": false,
+    "interpretation": "p-value = 4.1141e-02 (Statistically significant)."
   }
 }

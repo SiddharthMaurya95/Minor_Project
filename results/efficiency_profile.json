@@ -3,17 +3,26 @@
     "params": 46294,
     "params_k": 46.29,
     "macs_proxy": 9073624,
-    "gpu_latency_ms": 3.091,
-    "cpu_latency_ms": 1.655,
-    "test_acc": 0.8388,
+    "gpu_latency_ms": 2.646,
+    "cpu_latency_ms": 1.324,
+    "test_acc": 0.8721,
     "is_proposed": true
+  },
+  "ConvNeXt-Femto": {
+    "params": 109890,
+    "params_k": 109.89,
+    "macs_proxy": 21538440,
+    "gpu_latency_ms": 5.941,
+    "cpu_latency_ms": 3.639,
+    "test_acc": 0.8654,
+    "is_proposed": false
   },
   "Vanilla CNN": {
     "params": 65314,
     "params_k": 65.31,
     "macs_proxy": 12801544,
-    "gpu_latency_ms": 1.028,
-    "cpu_latency_ms": 0.807,
+    "gpu_latency_ms": 0.862,
+    "cpu_latency_ms": 0.71,
     "test_acc": 0.8526,
     "is_proposed": false
   },
@@ -21,18 +30,18 @@
     "params": 894498,
     "params_k": 894.5,
     "macs_proxy": 175321608,
-    "gpu_latency_ms": 2.132,
-    "cpu_latency_ms": 2.117,
-    "test_acc": 0.82,
+    "gpu_latency_ms": 2.326,
+    "cpu_latency_ms": 1.849,
+    "test_acc": 0.8696,
     "is_proposed": false
   },
   "ResNet50V2Small": {
     "params": 751522,
     "params_k": 751.52,
     "macs_proxy": 147298312,
-    "gpu_latency_ms": 11.061,
-    "cpu_latency_ms": 6.539,
-    "test_acc": 0.82,
+    "gpu_latency_ms": 11.604,
+    "cpu_latency_ms": 5.555,
+    "test_acc": 0.8423,
     "is_proposed": false
   }
 }

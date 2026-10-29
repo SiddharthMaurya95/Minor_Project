@@ -1,35 +1,35 @@
 {
-  "accuracy": 0.8701923076923077,
-  "roc_auc": 0.9567115932500548,
-  "precision": 0.838074398249453,
-  "recall": 0.982051282051282,
-  "sensitivity": 0.982051282051282,
-  "specificity": 0.6837606837606838,
-  "f1": 0.9043683589138135,
+  "accuracy": 0.8557692307692307,
+  "roc_auc": 0.9569526627218935,
+  "precision": 0.8151260504201681,
+  "recall": 0.9948717948717949,
+  "sensitivity": 0.9948717948717949,
+  "specificity": 0.6239316239316239,
+  "f1": 0.8960739030023095,
   "confusion_matrix": [
     [
-      160,
-      74
+      146,
+      88
     ],
     [
-      7,
-      383
+      2,
+      388
     ]
   ],
-  "tp": 383,
-  "tn": 160,
-  "fp": 74,
-  "fn": 7,
+  "tp": 388,
+  "tn": 146,
+  "fp": 88,
+  "fn": 2,
   "model_name": "physsl_net",
   "dataset": "pneumoniamnist",
   "split": "test",
   "seed": 456,
   "label_fraction": 1.0,
   "num_parameters": 46294,
-  "latency_ms_per_sample": 0.152,
-  "throughput_fps": 6572.6,
+  "latency_ms_per_sample": 0.175,
+  "throughput_fps": 5716.0,
   "threshold": 0.5,
   "tta_applied": false,
-  "logit_adj_applied": true,
-  "checkpoint_path": "checkpoints/physsl_net_pneumoniamnist_frac100_seed456_best.pth"
+  "logit_adj_applied": false,
+  "checkpoint_path": "./checkpoints/physsl_net_pneumoniamnist_frac100_seed456_best.pth"
 }

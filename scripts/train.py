@@ -192,6 +192,7 @@ def train_model(
         scheduler = CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
 
     best_val_score = -999.0
+    best_val_auc = 0.0
     best_epoch = 0
     patience_counter = 0
 
@@ -271,6 +272,7 @@ def train_model(
 
         if val_score > best_val_score:
             best_val_score = val_score
+            best_val_auc = val_metrics['roc_auc']
             best_epoch = epoch
             patience_counter = 0
             torch.save({

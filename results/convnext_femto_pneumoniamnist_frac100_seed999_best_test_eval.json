@@ -1,0 +1,35 @@
+{
+  "accuracy": 0.8701923076923077,
+  "roc_auc": 0.9482358097742714,
+  "precision": 0.8395604395604396,
+  "recall": 0.9794871794871794,
+  "sensitivity": 0.9794871794871794,
+  "specificity": 0.688034188034188,
+  "f1": 0.9041420118343195,
+  "confusion_matrix": [
+    [
+      161,
+      73
+    ],
+    [
+      8,
+      382
+    ]
+  ],
+  "tp": 382,
+  "tn": 161,
+  "fp": 73,
+  "fn": 8,
+  "model_name": "convnext_femto",
+  "dataset": "pneumoniamnist",
+  "split": "test",
+  "seed": 999,
+  "label_fraction": 1.0,
+  "num_parameters": 109890,
+  "latency_ms_per_sample": 0.166,
+  "throughput_fps": 6015.8,
+  "threshold": 0.5,
+  "tta_applied": false,
+  "logit_adj_applied": false,
+  "checkpoint_path": "./checkpoints\\convnext_femto_pneumoniamnist_frac100_seed999_best.pth"
+}
