@@ -14,7 +14,6 @@ import torch.nn as nn
 import pytest
 
 from models.physsl_net import PhySSLNet, PhySSLSimSiam, IntensityRBF, BandPassBlock, CurvatureAttention, GlobalTokenMixer
-from models.c_mixer import CMixer
 from models.baselines import VanillaCNN, VGG16Small, ResNet50V2Small
 
 
@@ -88,7 +87,7 @@ def test_simsiam_ssl_loss():
     assert has_grad, "Encoder did not receive gradients during SSL backward pass!"
 
 
-@pytest.mark.parametrize("model_cls", [CMixer, VanillaCNN, VGG16Small, ResNet50V2Small])
+@pytest.mark.parametrize("model_cls", [VanillaCNN, VGG16Small, ResNet50V2Small])
 def test_baseline_models(model_cls):
     model = model_cls(in_channels=1, num_classes=2)
     x = torch.randn(2, 1, 28, 28)
@@ -246,7 +245,6 @@ def test_curvature_attention_constant_input():
 
 
 @pytest.mark.parametrize("model_cls,expected_params", [
-    (CMixer, 277156),
     (VanillaCNN, 65314),
     (VGG16Small, 894498),
     (ResNet50V2Small, 751522),
@@ -258,7 +256,7 @@ def test_baseline_exact_parameter_counts(model_cls, expected_params):
     assert params == expected_params, f"{model_cls.__name__} expected {expected_params} params, got {params}"
 
 
-@pytest.mark.parametrize("model_cls", [CMixer, VanillaCNN, VGG16Small, ResNet50V2Small])
+@pytest.mark.parametrize("model_cls", [VanillaCNN, VGG16Small, ResNet50V2Small])
 def test_baseline_checkpoint_saving_reloading(model_cls):
     """Verify state_dict checkpoint saving, reloading, and numerical consistency for all baselines."""
     model = model_cls(in_channels=1, num_classes=2)
@@ -285,7 +283,6 @@ def test_baseline_checkpoint_saving_reloading(model_cls):
 
 
 @pytest.mark.parametrize("model_cls,expected_dim", [
-    (CMixer, 64),
     (VanillaCNN, 64),
     (VGG16Small, 128),
     (ResNet50V2Small, 256),
@@ -301,7 +298,7 @@ def test_baseline_feature_extraction(model_cls, expected_dim):
     assert torch.isfinite(feats).all()
 
 
-@pytest.mark.parametrize("model_cls", [CMixer, VanillaCNN, VGG16Small, ResNet50V2Small])
+@pytest.mark.parametrize("model_cls", [VanillaCNN, VGG16Small, ResNet50V2Small])
 def test_baseline_multichannel_and_multiclass(model_cls):
     """Verify baselines support 3 input channels and multiclass settings (DermaMNIST 7 classes, PathMNIST 9 classes)."""
     # DermaMNIST: 3 channels, 7 classes
@@ -319,7 +316,7 @@ def test_baseline_multichannel_and_multiclass(model_cls):
     assert torch.isfinite(out_path).all()
 
 
-@pytest.mark.parametrize("model_cls", [CMixer, VanillaCNN, VGG16Small, ResNet50V2Small])
+@pytest.mark.parametrize("model_cls", [VanillaCNN, VGG16Small, ResNet50V2Small])
 def test_baseline_gradient_flow(model_cls):
     """Verify that every trainable parameter in each baseline receives valid non-zero gradients."""
     model = model_cls(in_channels=1, num_classes=2)
@@ -335,18 +332,4 @@ def test_baseline_gradient_flow(model_cls):
             assert torch.isfinite(param.grad).all(), f"Parameter {name} in {model_cls.__name__} has NaN/Inf gradients"
             assert not torch.all(param.grad == 0), f"Parameter {name} in {model_cls.__name__} has zero gradient"
 
-
-def test_cmixer_incentive_noise_generation():
-    """Verify C-Mixer incentive learning noise generator."""
-    model = CMixer(in_channels=1, num_classes=2)
-    x = torch.rand(2, 1, 28, 28)
-    imag = model._generate_incentive_noise(x)
-    assert imag.shape == x.shape
-    assert torch.isfinite(imag).all()
-    # Gradient flow through incentive network
-    loss = imag.sum()
-    loss.backward()
-    for name, param in model.incentive_net.named_parameters():
-        assert param.grad is not None
-        assert torch.isfinite(param.grad).all()
 

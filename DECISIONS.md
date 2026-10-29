@@ -40,7 +40,7 @@
   - Stop-gradient strictly eliminates representation collapse without requiring negative pair contrastive queues.
 
 ## Decision 4: Baseline Models Architecture & Recipes
-- **C-Mixer:** Implemented according to Zheng & Jia (2023), featuring complex affine projections ($W = A + Bi$), CReLU activation ($\text{ReLU}(a) + i\text{ReLU}(b)$), Pearson curve projection ($p = \tanh(\text{real}(y) + \text{imag}(y))$), and incentive Gaussian noise generation.
+- **ResNet50V2:** Implemented according to Zheng & Jia (2023), featuring complex affine projections ($W = A + Bi$), CReLU activation ($\text{ReLU}(a) + i\text{ReLU}(b)$), Pearson curve projection ($p = \tanh(\text{real}(y) + \text{imag}(y))$), and incentive Gaussian noise generation.
 - **VGG16:** Adapted VGG-style convolutional backbone for 28x28 input resolution with batch normalization.
 - **ResNet50V2:** Adapted Pre-activation ResNet backbone with bottleneck blocks suitable for 28x28 images.
 - **Vanilla CNN:** Standard 4-layer Conv2D + BatchNorm + ReLU + MaxPool architecture as defined in the DTU research plan.

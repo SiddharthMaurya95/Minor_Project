@@ -81,16 +81,6 @@ train:
 
 # Model-Specific Reproduction Training Recipes
 model_recipes:
-  c_mixer:
-    description: "Complex Mixer (Zheng & Jia, 2023) reproduction recipe"
-    optimizer: "adamw"
-    lr: 0.001
-    weight_decay: 0.0001
-    scheduler: "multistep"
-    milestones: [50, 75]
-    gamma: 0.1
-    epochs: 25
-    early_stopping_patience: 8
   vanilla_cnn:
     description: "Standard 4-layer CNN (DTU Minor Project baseline)"
     optimizer: "adam"
@@ -146,7 +136,6 @@ seeds:
 
 # Baseline Models to Benchmark
 baselines:
-  - "c_mixer"
   - "vgg16"
   - "resnet50v2"
   - "vanilla_cnn"

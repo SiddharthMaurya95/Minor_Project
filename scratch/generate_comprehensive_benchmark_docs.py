@@ -11,9 +11,9 @@ import sys
 import docx
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
-from docx.oxml import parse_xml, OxmlElement
-from docx.oxml.ns import nsdecls, qn
+from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.oxml import parse_xml
+from docx.oxml.ns import nsdecls
 
 def set_cell_background(cell, hex_color):
     tcPr = cell._tc.get_or_add_tcPr()
@@ -91,7 +91,7 @@ def build_docx_report():
     r_t.font.size = Pt(15)
     r_t.font.color.rgb = DTU_BLUE
 
-    r_st = p_title.add_run("A Multi-Architectural Study on Google Cloud TPU v5e-8 Comparing Physics-Informed Inductive Biases Against Classical and Modern Vision Baselines\n")
+    r_st = p_title.add_run("A Multi-Architectural Study on Google Cloud TPU v5e-8 Comparing Physics-Informed Inductive Biases Against Classical and Modern Convolutional Baselines\n")
     r_st.font.size = Pt(11.5)
     r_st.italic = True
     r_st.font.color.rgb = DARK_GRAY
@@ -146,9 +146,7 @@ def build_docx_report():
 
     doc.add_page_break()
 
-    # ==========================================
-    # HELPER FORMATTING FUNCTIONS
-    # ==========================================
+    # Helpers
     def add_h1(text):
         p = doc.add_paragraph()
         p.paragraph_format.space_before = Pt(14)
@@ -195,24 +193,24 @@ def build_docx_report():
     p.add_run(
         "Self-supervised representation learning in medical imaging frequently encounters severe capacity and stability "
         "trade-offs when transferring vision architectures to clinical screening regimes characterized by scarce annotations, "
-        "low contrast, and high acoustic or photon noise. Standard convolutional backbones (e.g., VGG, ResNet) and emerging "
-        "token-mixing architectures (e.g., C-Mixer) treat pixels as unconstrained Euclidean arrays, discarding fundamental physical "
-        "and geometric properties of medical image formation such as non-linear attenuation, boundary curvature, and localized tissue absorption. "
-        "In this work, we evaluate PhySSL-Net—a physics- and structure-informed architecture requiring only 46,286 parameters—across "
-        "all eleven single-label 2D classification datasets of the standardized MedMNIST v2 benchmark. The entire experimental evaluation "
-        "was executed on Google Cloud TPU v5e-8 hardware under a strictly controlled optimization protocol (15 epochs, batch size 256, "
-        "AdamW with cosine annealing) alongside four baseline models: C-Mixer (23,078 parameters), Vanilla CNN (56,194 parameters), "
+        "low contrast, and high acoustic or photon noise. Standard convolutional backbones treat pixels as unconstrained Euclidean arrays, "
+        "discarding fundamental physical and geometric properties of medical image formation such as non-linear attenuation, boundary curvature, "
+        "and localized tissue absorption. In this work, we evaluate PhySSL-Net—a physics- and structure-informed architecture requiring "
+        "only 46,286 parameters—across all eleven single-label 2D classification datasets of the standardized MedMNIST v2 benchmark. "
+        "The entire experimental evaluation was executed on Google Cloud TPU v5e-8 hardware under a strictly controlled optimization protocol "
+        "(15 epochs, batch size 256, AdamW with cosine annealing) alongside three established baseline models: Vanilla CNN (56,194 parameters), "
         "VGG16 adapted (304,098 parameters), and ResNet50V2 adapted (751,522 parameters)."
     )
 
     p = doc.add_paragraph()
     p.add_run(
         "The empirical findings demonstrate clear, modality-specific performance patterns:\n"
-        "1. Superiority Over Primary Rival (C-Mixer): PhySSL-Net outperforms C-Mixer on 10 out of 11 datasets, achieving an aggregate "
-        "mean test accuracy of 77.03% compared to 72.57% for C-Mixer (+4.46% absolute improvement across the suite).\n"
+        "1. Overall Accuracy: PhySSL-Net attains an aggregate mean test accuracy of 77.03% across the entire 11-dataset benchmark, "
+        "surpassing Vanilla CNN (76.38%) while using fewer parameters (46,286 vs 56,194).\n"
         "2. State-of-the-Art Modality Dominance: On BreastMNIST (ultrasound), PhySSL-Net achieves 83.97% test accuracy, securing the "
-        "top rank across all five models and outperforming VGG16 (76.92%), ResNet50V2 (73.72%), and C-Mixer (73.08%) by +7.05%, +10.25%, "
-        "and +10.89% margins, respectively. On RetinaMNIST (fundus photography), PhySSL-Net similarly ranks first with 55.00% accuracy.\n"
+        "top rank across all models and outperforming VGG16 (76.92%), ResNet50V2 (73.72%), and Vanilla CNN (60.90%) by +7.05%, +10.25%, "
+        "and +23.07% margins, respectively. On RetinaMNIST (fundus photography), PhySSL-Net similarly ranks first with 55.00% accuracy, "
+        "outperforming VGG16 (53.25%), Vanilla CNN (51.75%), and ResNet50V2 (49.50%).\n"
         "3. High Parameter Efficiency: While heavy overparameterized architectures (VGG16 at 304k and ResNet50V2 at 751k) achieve marginal "
         "accuracy advantages on dense abdominal CT slices (OrganAMNIST, OrganCMNIST) due to raw feature capacity, PhySSL-Net delivers "
         "16.64% accuracy per 10,000 parameters—outperforming VGG16 (2.66%) and ResNet50V2 (1.05%) by more than six-fold to sixteen-fold in "
@@ -255,7 +253,7 @@ def build_docx_report():
         "• Training Epochs: 15 full epochs per dataset-model pair.\n"
         "• Mini-batch Size: 256 samples with shuffled training loaders and deterministic validation/test loaders.\n"
         "• Optimizer: AdamW with decoupled weight decay (beta_1 = 0.9, beta_2 = 0.999, weight_decay = 1e-4).\n"
-        "• Learning Rate Schedule: Initial learning rate eta_0 = 1e-3 governed by Cosine Annealing over 15 epochs down to eta_min = 1e-6.\n"
+        "• Learning Rate Schedule: Initial learning rate eta_0 = 1e-3 governed by Cosine Annealing decay down to eta_min = 1e-6.\n"
         "• Loss Formulation: Multi-class cross-entropy loss with softmax activation for multi-class tasks, and binary cross-entropy with logits for binary tasks.\n"
         "• Model Selection: The best model weights were saved based on validation split accuracy and subsequently evaluated on the untouched test partition."
     )
@@ -267,29 +265,29 @@ def build_docx_report():
     p = doc.add_paragraph()
     p.add_run(
         "Table 1 presents the complete comparative results recorded from the Kaggle TPU v5e-8 execution across all 11 MedMNIST v2 datasets "
-        "and 5 evaluated architectures. Values denote classification accuracy (%) on the sequestered test split."
+        "and 4 evaluated architectures. Values denote classification accuracy (%) on the sequestered test split."
     )
 
-    # Results Table
+    # Results Table (No ResNet50V2)
     raw_data = [
-        ("BloodMNIST", "Blood Cell Microscopy", "87.96", "91.64", "93.07", "95.97", "95.18"),
-        ("BreastMNIST", "Breast Ultrasound", "73.08", "83.97", "60.90", "76.92", "73.72"),
-        ("DermaMNIST", "Dermatoscopy", "72.67", "74.36", "73.42", "75.76", "72.52"),
-        ("OCTMNIST", "Retinal OCT", "61.40", "71.60", "72.00", "75.70", "74.40"),
-        ("OrganAMNIST", "Abdominal CT (Axial)", "80.25", "85.60", "88.83", "93.13", "92.44"),
-        ("OrganCMNIST", "Abdominal CT (Coronal)", "81.51", "86.66", "87.48", "90.85", "89.16"),
-        ("OrganSMNIST", "Abdominal CT (Sagittal)", "67.17", "69.91", "74.67", "79.45", "77.09"),
-        ("PathMNIST", "Colon Pathology", "82.86", "78.26", "86.25", "91.04", "87.26"),
-        ("PneumoniaMNIST", "Pediatric Chest X-Ray", "83.97", "85.42", "87.34", "88.46", "86.38"),
-        ("RetinaMNIST", "Fundus Photography", "51.00", "55.00", "51.75", "53.25", "49.50"),
-        ("TissueMNIST", "Kidney Cortex Histology", "56.38", "64.91", "64.48", "68.94", "67.62"),
+        ("BloodMNIST", "Blood Cell Microscopy", "91.64", "93.07", "95.97", "95.18"),
+        ("BreastMNIST", "Breast Ultrasound", "83.97", "60.90", "76.92", "73.72"),
+        ("DermaMNIST", "Dermatoscopy", "74.36", "73.42", "75.76", "72.52"),
+        ("OCTMNIST", "Retinal OCT", "71.60", "72.00", "75.70", "74.40"),
+        ("OrganAMNIST", "Abdominal CT (Axial)", "85.60", "88.83", "93.13", "92.44"),
+        ("OrganCMNIST", "Abdominal CT (Coronal)", "86.66", "87.48", "90.85", "89.16"),
+        ("OrganSMNIST", "Abdominal CT (Sagittal)", "69.91", "74.67", "79.45", "77.09"),
+        ("PathMNIST", "Colon Pathology", "78.26", "86.25", "91.04", "87.26"),
+        ("PneumoniaMNIST", "Pediatric Chest X-Ray", "85.42", "87.34", "88.46", "86.38"),
+        ("RetinaMNIST", "Fundus Photography", "55.00", "51.75", "53.25", "49.50"),
+        ("TissueMNIST", "Kidney Cortex Histology", "64.91", "64.48", "68.94", "67.62"),
     ]
 
-    t_res = doc.add_table(rows=len(raw_data) + 3, cols=7)
+    t_res = doc.add_table(rows=len(raw_data) + 2, cols=6)
     t_res.alignment = WD_TABLE_ALIGNMENT.CENTER
     set_table_borders(t_res, "A0B8D0")
 
-    headers = ["Dataset", "Modality Domain", "C-Mixer\n(23k)", "PhySSL-Net\n(Ours, 46k)", "Vanilla CNN\n(56k)", "VGG16\n(304k)", "ResNet50V2\n(751k)"]
+    headers = ["Dataset", "Modality Domain", "PhySSL-Net\n(Ours, 46k)", "Vanilla CNN\n(56k)", "VGG16\n(304k)", "ResNet50V2\n(751k)"]
     hdr_row = t_res.rows[0]
     for idx, name in enumerate(headers):
         cell = hdr_row.cells[idx]
@@ -304,11 +302,11 @@ def build_docx_report():
 
     for r_idx, row in enumerate(raw_data, 1):
         tr = t_res.rows[r_idx]
-        d_name, mod, c_m, p_ssl, v_cnn, vgg, res = row
+        d_name, mod, p_ssl, v_cnn, vgg, res = row
         is_even = (r_idx % 2 == 0)
         bg = LIGHT_BG_HEX if is_even else "FFFFFF"
 
-        values = [d_name, mod, c_m, p_ssl, v_cnn, vgg, res]
+        values = [d_name, mod, p_ssl, v_cnn, vgg, res]
         for c_idx, val in enumerate(values):
             cell = tr.cells[c_idx]
             set_cell_background(cell, bg)
@@ -318,8 +316,7 @@ def build_docx_report():
             r.font.size = Pt(9)
             if c_idx >= 2:
                 p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                # Highlight top performer
-                flt_vals = [float(v) for v in [c_m, p_ssl, v_cnn, vgg, res]]
+                flt_vals = [float(v) for v in [p_ssl, v_cnn, vgg, res]]
                 max_v = max(flt_vals)
                 if float(val) == max_v:
                     r.bold = True
@@ -327,9 +324,9 @@ def build_docx_report():
             else:
                 p.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
-    # Add Summary Rows (Mean & Median)
+    # Add Mean Row
     r_mean = t_res.rows[len(raw_data) + 1]
-    mean_vals = ["Overall Mean (11 Datasets)", "Summary Metric", "72.57%", "77.03%", "76.38%", "80.86%", "78.66%"]
+    mean_vals = ["Overall Mean (11 Datasets)", "Summary Metric", "77.03%", "76.38%", "80.86%", "78.66%"]
     for c_idx, val in enumerate(mean_vals):
         cell = r_mean.cells[c_idx]
         set_cell_background(cell, HIGHLIGHT_HEX)
@@ -338,18 +335,6 @@ def build_docx_report():
         r = p.add_run(val)
         r.bold = True
         r.font.size = Pt(9.5)
-        p.alignment = WD_ALIGN_PARAGRAPH.RIGHT if c_idx >= 2 else WD_ALIGN_PARAGRAPH.LEFT
-
-    r_wins = t_res.rows[len(raw_data) + 2]
-    win_vals = ["Head-to-Head vs C-Mixer", "SSL Rival Win Rate", "Baseline", "10 / 11 (90.9%)", "9 / 11", "11 / 11", "10 / 11"]
-    for c_idx, val in enumerate(win_vals):
-        cell = r_wins.cells[c_idx]
-        set_cell_background(cell, LIGHT_BG_HEX)
-        set_cell_margins(cell, top=100, bottom=100, left=100, right=100)
-        p = cell.paragraphs[0]
-        r = p.add_run(val)
-        r.italic = True
-        r.font.size = Pt(8.5)
         p.alignment = WD_ALIGN_PARAGRAPH.RIGHT if c_idx >= 2 else WD_ALIGN_PARAGRAPH.LEFT
 
     p_cap = doc.add_paragraph()
@@ -369,7 +354,7 @@ def build_docx_report():
         run_img.add_picture(fig_path, width=Inches(6.2))
         p_fig_cap = doc.add_paragraph()
         p_fig_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        r_fc = p_fig_cap.add_run("Figure 1: (Top) Multi-dataset test accuracy across 11 MedMNIST modalities; (Bottom) Absolute test accuracy gain of PhySSL-Net over C-Mixer and ResNet50V2.")
+        r_fc = p_fig_cap.add_run("Figure 1: (Top) Multi-dataset test accuracy across 11 MedMNIST modalities; (Bottom) Absolute test accuracy differential of PhySSL-Net over ResNet50V2 and Vanilla CNN.")
         r_fc.font.size = Pt(8.5)
         r_fc.italic = True
         r_fc.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
@@ -387,8 +372,8 @@ def build_docx_report():
     add_h2("4.1 Ultrasound Imaging: BreastMNIST (83.97%, Rank #1)")
     p = doc.add_paragraph()
     p.add_run(
-        "On BreastMNIST, PhySSL-Net delivers its most decisive victory, outperforming all four baseline models by substantial margins: "
-        "+7.05% over VGG16 (76.92%), +10.25% over ResNet50V2 (73.72%), +10.89% over C-Mixer (73.08%), and +23.07% over Vanilla CNN (60.90%).\n"
+        "On BreastMNIST, PhySSL-Net delivers its most decisive victory, outperforming all three baseline models by substantial margins: "
+        "+7.05% over VGG16 (76.92%), +10.25% over ResNet50V2 (73.72%), and +23.07% over Vanilla CNN (60.90%).\n"
         "Physical Rationale: Breast ultrasound imaging is heavily degraded by coherent acoustic interference, producing multiplicative Rayleigh "
         "speckle noise and acoustic attenuation shadows. Standard spatial convolutions propagate and amplify high-frequency speckle fluctuations. "
         "In PhySSL-Net, the continuous Radial Basis Function (RBF) mapping decomposes gray-level intensities into distinct response bands, "
@@ -401,8 +386,7 @@ def build_docx_report():
     add_h2("4.2 Fundus Photography: RetinaMNIST (55.00%, Rank #1)")
     p = doc.add_paragraph()
     p.add_run(
-        "On RetinaMNIST, PhySSL-Net again ranks first (55.00%), outperforming VGG16 (53.25%), Vanilla CNN (51.75%), C-Mixer (51.00%), "
-        "and ResNet50V2 (49.50%).\n"
+        "On RetinaMNIST, PhySSL-Net again ranks first (55.00%), outperforming VGG16 (53.25%), Vanilla CNN (51.75%), and ResNet50V2 (49.50%).\n"
         "Physical Rationale: Retinal fundus photography requires identifying subtle vascular branching, optic disc boundaries, and microaneurysms. "
         "When downsampled to 28x28 resolution, microvascular details are reduced to single-pixel discontinuities. Deep convolutional downsampling "
         "in ResNet50V2 causes excessive spatial feature blur, resulting in sub-50% performance. PhySSL-Net's BandPass block retains mid-frequency "
@@ -412,7 +396,7 @@ def build_docx_report():
     add_h2("4.3 Dermatoscopy: DermaMNIST (74.36%, Rank #2)")
     p = doc.add_paragraph()
     p.add_run(
-        "On DermaMNIST, PhySSL-Net achieves 74.36% test accuracy, outperforming ResNet50V2 (72.52%), Vanilla CNN (73.42%), and C-Mixer (72.67%), "
+        "On DermaMNIST, PhySSL-Net achieves 74.36% test accuracy, outperforming ResNet50V2 (72.52%) and Vanilla CNN (73.42%), "
         "trailing only VGG16 (75.76%).\n"
         "Physical Rationale: Skin lesion classification (melanoma, nevus, basal cell carcinoma) relies heavily on border irregularity (asymmetry, "
         "border, color, diameter—the ABCD criteria). Curvature attention provides an inductive bias specifically tailored to quantify border "
@@ -427,8 +411,7 @@ def build_docx_report():
         "Physical Rationale: Abdominal CT slices represent 11-class multi-organ recognition tasks involving liver, spleen, kidneys, and pancreas. "
         "These structures share similar Hounsfield attenuation units (HU) but differ in complex 3D shape and spatial orientation. Deeper models "
         "with 304k–751k parameters possess the representational capacity necessary to model subtle inter-organ texture boundaries across 11 classes, "
-        "whereas compact 46k token mixers encounter an inherent capacity ceiling on large multi-class organ distinction. Notably, PhySSL-Net still "
-        "outperforms C-Mixer by +5.15% to +5.35% on these modalities."
+        "whereas compact 46k token mixers encounter an inherent capacity ceiling on large multi-class organ distinction."
     )
 
     add_h2("4.5 Pathology: PathMNIST (78.26%)")
@@ -451,11 +434,10 @@ def build_docx_report():
     )
 
     eff_data = [
-        ("C-Mixer (CVPR Rival)", "23,078", "1.00x", "72.57%", "31.45%", "0 / 11"),
-        ("PhySSL-Net (Ours)", "46,286", "2.01x", "77.03%", "16.64%", "2 / 11 (Breast, Retina)"),
-        ("Vanilla CNN", "56,194", "2.43x", "76.38%", "13.59%", "0 / 11"),
-        ("VGG16 Adapted", "304,098", "13.18x", "80.86%", "2.66%", "7 / 11"),
-        ("ResNet50V2 Adapted", "751,522", "32.56x", "78.66%", "1.05%", "2 / 11"),
+        ("PhySSL-Net (Ours)", "46,286", "1.00x", "77.03%", "16.64%", "2 / 11 (Breast, Retina)"),
+        ("Vanilla CNN", "56,194", "1.21x", "76.38%", "13.59%", "0 / 11"),
+        ("VGG16 Adapted", "304,098", "6.57x", "80.86%", "2.66%", "7 / 11"),
+        ("ResNet50V2 Adapted", "751,522", "16.24x", "78.66%", "1.05%", "2 / 11"),
     ]
 
     t_eff = doc.add_table(rows=len(eff_data) + 1, cols=6)
@@ -523,9 +505,9 @@ def build_docx_report():
         "This multi-dataset benchmark delivers clear empirical validation for the central thesis of the PhySSL-Net research project: "
         "integrating domain physics (intensity Gaussian basis decomposition and differential curvature boundary filtering) into a "
         "compact self-supervised representation backbone yields superior generalization in noisy morphological clinical domains.\n\n"
-        "Across the complete 11-dataset MedMNIST v2 suite, PhySSL-Net decisively outperforms its direct self-supervised rival (C-Mixer) "
-        "on 10 of 11 datasets (+4.46% overall average gain), achieves #1 overall accuracy on Breast Ultrasound (83.97%) and Retinal Fundus (55.00%), "
-        "and operates at 16.2x lower parameter complexity than ResNet50V2. These findings confirm that inductive physical biases offer "
+        "Across the complete 11-dataset MedMNIST v2 suite, PhySSL-Net achieves an aggregate mean test accuracy of 77.03%, "
+        "outperforming Vanilla CNN (76.38%), securing #1 overall accuracy on Breast Ultrasound (83.97%) and Retinal Fundus (55.00%), "
+        "and operating at 16.2x lower parameter complexity than ResNet50V2. These findings confirm that inductive physical biases offer "
         "an effective, lightweight paradigm for edge clinical screening systems."
     )
 

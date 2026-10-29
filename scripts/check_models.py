@@ -2,11 +2,10 @@
 Script to verify model architectures, parameter counts, forward/backward passes, and gradient flow.
 Tests:
 1. PhySSLNet (Full and all ablation variants)
-2. CMixer (Complex Mixer)
-3. VanillaCNN
-4. VGG16Small
-5. ResNet50V2Small
-6. PhySSLSimSiam SSL Wrapper
+2. VanillaCNN
+3. VGG16Small
+4. ResNet50V2Small
+5. PhySSLSimSiam SSL Wrapper
 """
 
 import os
@@ -17,7 +16,6 @@ import torch.nn as nn
 # Add project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from models.physsl_net import PhySSLNet, PhySSLSimSiam
-from models.c_mixer import CMixer
 from models.baselines import VanillaCNN, VGG16Small, ResNet50V2Small
 
 
@@ -85,9 +83,6 @@ def run_model_checks(device="cuda" if torch.cuda.is_available() else "cpu"):
     test_model_forward_backward("PhySSLSimSiam SSL", ssl_wrapper, x, is_ssl=True)
 
     # 4. Baselines
-    c_mixer = CMixer(in_channels=C, num_classes=2).to(device)
-    test_model_forward_backward("C-Mixer Baseline", c_mixer, x)
-
     vanilla_cnn = VanillaCNN(in_channels=C, num_classes=2).to(device)
     test_model_forward_backward("Vanilla CNN Baseline", vanilla_cnn, x)
 

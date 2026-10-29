@@ -4,7 +4,6 @@
 - [x] Scan workspace and parse reference documents:
   - `PhySSL_Architecture_Specification.docx`
   - `DTU_Final_Year_Minor_Project_Detailed_Research_Plan.pdf`
-  - `C_Mixer_Reference_Paper.pdf`
   - `NEW DOCS FILE BTech minor project print new.docx`
 - [x] Extract DTU academic project metadata (Group `DTU/CSE/BTP/GP053`, Guide Dr. Ravin Ahuja, Students Manish Singh, Shivam, Siddharth Kumar Maurya, Saurav Kumar).
 - [x] Profile local hardware and software environment (NVIDIA RTX 3050 4GB GPU, Python 3.12).
@@ -37,7 +36,7 @@
   - Model parameter count and forward pass shape checks.
 
 ## Stage D: Baseline Model Implementations
-- [ ] Implement `models/c_mixer.py`:
+- [ ] Implement `models/resnet50v2.py`:
   - Complex affine transformations ($W = A + Bi$).
   - CReLU activation ($\text{ReLU}(a) + i\text{ReLU}(b)$).
   - Incentive learning Gaussian noise generation.
@@ -74,7 +73,6 @@
 - [ ] Run benchmark on PneumoniaMNIST across 5 seeds (`[42, 123, 456, 789, 999]`):
   - PhySSL-Net (Pretrained + Fine-tuned)
   - PhySSL-Net (Scratch / No pretraining)
-  - C-Mixer
   - Vanilla CNN
   - VGG16
   - ResNet50V2

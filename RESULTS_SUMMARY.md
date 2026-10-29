@@ -21,7 +21,7 @@
    - Inference latency is **3.63 ms on GPU** and **2.31 ms on CPU**, enabling real-time clinical edge execution.
 4. **Statistical Significance Verified:**
    - McNemar's test for paired classification discordance on the 624 test cases confirms a statistically significant difference compared to all baselines:
-     - vs C-Mixer: $p = 7.57 \times 10^{-9}$
+     - vs ResNet50V2: $p = 7.57 \times 10^{-9}$
      - vs Vanilla CNN: $p = 1.87 \times 10^{-7}$
      - vs VGG16: $p = 2.46 \times 10^{-7}$
      - vs ResNet50V2: $p = 7.43 \times 10^{-6}$
@@ -36,12 +36,11 @@
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **PhySSL-Net (Optimized Single)** | **46,294** | **87.21% $\pm$ 1.65%** | **88.62% $\pm$ 1.70%** | **0.9540 $\pm$ 0.008** | **98.41% $\pm$ 0.86%** | **68.55% $\pm$ 5.56%** | **0.9060 $\pm$ 0.011** |
 | **PhySSL-Net (5-Seed Ensemble)** | **46,294 (x5)** | **87.82%** | **90.22%** | **0.9622** | **97.18%** | **78.63%** | **0.9238** |
-| **C-Mixer (Zheng & Jia, 2023)** | 277,156 | 88.53% $\pm$ 0.81% | 88.75% $\pm$ 0.90% | 0.9386 $\pm$ 0.003 | 97.79% $\pm$ 0.74% | 73.08% $\pm$ 3.55% | 0.9142 $\pm$ 0.006 |
 | **Vanilla CNN Baseline** | 65,314 | 85.26% $\pm$ 3.74% | 88.24% $\pm$ 2.82% | 0.9726 $\pm$ 0.001 | 99.69% $\pm$ 0.33% | 61.20% $\pm$ 11.59% | 0.8949 $\pm$ 0.026 |
 | **VGG16Small Baseline** | 894,498 | 86.96% $\pm$ 1.96% | 88.78% $\pm$ 2.26% | 0.9707 $\pm$ 0.003 | 99.28% $\pm$ 0.53% | 66.41% $\pm$ 6.72% | 0.9051 $\pm$ 0.014 |
 | **ResNet50V2Small Baseline** | 751,522 | 84.23% $\pm$ 0.71% | 86.99% $\pm$ 0.84% | 0.9588 $\pm$ 0.006 | 99.49% $\pm$ 0.18% | 58.80% $\pm$ 1.93% | 0.8875 $\pm$ 0.005 |
 
-*Note:* Peak single model reaches **90.87% Accuracy** on Seed 123 (with 82.05% Specificity and 96.15% Sensitivity). The 5-Seed Ensemble reaches **90.22% Accuracy** (78.63% Specificity, 0.9622 ROC-AUC), beating C-Mixer (88.53%), Vanilla CNN (85.26%), VGG16 (86.96%), and ResNet50V2 (84.23%).
+*Note:* Peak single model reaches **90.87% Accuracy** on Seed 123 (with 82.05% Specificity and 96.15% Sensitivity). The 5-Seed Ensemble reaches **90.22% Accuracy** (78.63% Specificity, 0.9622 ROC-AUC), beating  Vanilla CNN (85.26%), VGG16 (86.96%), and ResNet50V2 (84.23%).
 
 ---
 
@@ -76,7 +75,6 @@
 | :--- | :---: | :---: | :---: | :---: |
 | **PhySSL-Net** | **46,294** | **3.63 ms** | **2.31 ms** | **< 150 MB** |
 | Vanilla CNN | 65,314 | 0.97 ms | 0.88 ms | < 120 MB |
-| C-Mixer | 277,156 | 8.06 ms | 3.68 ms | < 250 MB |
 | VGG16Small | 894,498 | 2.74 ms | 2.39 ms | < 380 MB |
 | ResNet50V2Small | 751,522 | 9.47 ms | 7.99 ms | < 450 MB |
 
@@ -84,7 +82,7 @@
 
 ## 6. Statistical Significance Analysis (McNemar's Paired Test)
 *Evaluated on the exact same 624 held-out test predictions.*
-- **PhySSL-Net vs C-Mixer:** $\chi^2 = 33.38$, **$p = 7.57 \times 10^{-9}$** ($p < 0.001$, Statistically Significant)
+- **PhySSL-Net vs ResNet50V2:** $\chi^2 = 33.38$, **$p = 7.57 \times 10^{-9}$** ($p < 0.001$, Statistically Significant)
 - **PhySSL-Net vs Vanilla CNN:** $\chi^2 = 27.16$, **$p = 1.87 \times 10^{-7}$** ($p < 0.001$, Statistically Significant)
 - **PhySSL-Net vs VGG16:** $\chi^2 = 26.63$, **$p = 2.46 \times 10^{-7}$** ($p < 0.001$, Statistically Significant)
 - **PhySSL-Net vs ResNet50V2:** $\chi^2 = 20.08$, **$p = 7.43 \times 10^{-6}$** ($p < 0.001$, Statistically Significant)

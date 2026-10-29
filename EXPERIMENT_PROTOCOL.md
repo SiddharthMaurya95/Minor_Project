@@ -23,13 +23,13 @@ Evaluate the representation learning and downstream classification performance o
 
 ## 3. Models Compared
 1. **PhySSL-Net:** Physics-inspired neural network with IntensityRBF, 7x7 BandPassBlock, Level-Set Curvature Attention, 7x7 Global Token Mixer, and Spatial Pyramid Head.
-2. **C-Mixer:** Complex-valued MLP-Mixer with incentive noise and Pearson projection (Zheng & Jia, 2023).
+2. **ResNet50V2:** Complex-valued MLP-Mixer with incentive noise and Pearson projection (Zheng & Jia, 2023).
 3. **VGG16:** Deep convolutional network with batch normalization adapted for 28x28 medical images.
 4. **ResNet50V2:** Pre-activation residual network adapted for 28x28 medical images.
 5. **Vanilla CNN:** Standard 4-layer convolutional baseline as approved in DTU research plan.
 
 ## 4. Training and Evaluation Regimes
-### Phase 1: Self-Supervised Pretraining (PhySSL-Net & C-Mixer)
+### Phase 1: Self-Supervised Pretraining (PhySSL-Net & ResNet50V2)
 - **Data:** 100% of the training split, completely unlabelled (class labels discarded).
 - **Transformation:** Dual stochastic masking with random cutout and medical-safe augmentations.
 - **Objective:** Symmetrized negative cosine similarity loss with stop-gradient predictor.

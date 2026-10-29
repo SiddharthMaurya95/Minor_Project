@@ -285,32 +285,6 @@ class ResNet50V2Small(nn.Module):
         feat = self.extract_features(x)
         return self.classifier(feat)
 
-class CMixer(nn.Module):
-    def __init__(self, in_channels=1, num_classes=2, hidden_dim=64, num_tokens=49):
-        super().__init__()
-        self.proj = nn.Conv2d(in_channels, hidden_dim, kernel_size=4, stride=4)
-        self.token_norm = nn.LayerNorm(hidden_dim)
-        self.token_mlp = nn.Sequential(
-            nn.Linear(num_tokens, num_tokens),
-            nn.GELU(),
-            nn.Linear(num_tokens, num_tokens)
-        )
-        self.chan_norm = nn.LayerNorm(hidden_dim)
-        self.chan_mlp = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim * 2),
-            nn.GELU(),
-            nn.Linear(hidden_dim * 2, hidden_dim)
-        )
-        self.head = nn.Sequential(
-            nn.LayerNorm(hidden_dim),
-            nn.Linear(hidden_dim, num_classes)
-        )
-
-    def forward(self, x):
-        x = self.proj(x).flatten(2).transpose(1, 2)
-        x = x + self.token_mlp(self.token_norm(x).transpose(1, 2)).transpose(1, 2)
-        x = x + self.chan_mlp(self.chan_norm(x))
-        return self.head(x.mean(dim=1))
 
 # ==========================================
 # 2. DATA LOADERS & DATASET WRAPPER
@@ -480,8 +454,6 @@ def train_and_eval(model_name, dataset_info, epochs=15, lr=1e-3):
 
     if model_name == "physsl_net":
         model = PhySSLNet(in_channels=in_channels, num_classes=num_classes).to(device)
-    elif model_name == "c_mixer":
-        model = CMixer(in_channels=in_channels, num_classes=num_classes).to(device)
     elif model_name == "vanilla_cnn":
         model = VanillaCNN(in_channels=in_channels, num_classes=num_classes).to(device)
     elif model_name == "vgg16":
@@ -615,7 +587,7 @@ if __name__ == "__main__":
     ]
 
     selected_datasets = all_2d if "all" in args.datasets else args.datasets
-    models = ["physsl_net", "c_mixer", "vanilla_cnn", "vgg16", "resnet50v2"]
+    models = ["physsl_net", "vanilla_cnn", "vgg16", "resnet50v2"]
 
     records = []
     print(f"\n=================================================================")

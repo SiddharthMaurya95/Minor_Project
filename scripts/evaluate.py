@@ -12,7 +12,6 @@ import torch.nn as nn
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from data.dataset import build_dataloaders
 from models.physsl_net import PhySSLNet
-from models.c_mixer import CMixer
 from models.baselines import VanillaCNN, VGG16Small, ResNet50V2Small
 from evaluation.metrics import compute_metrics, apply_logit_adjustment, find_optimal_threshold
 
@@ -27,8 +26,6 @@ def build_model(model_name, in_channels, num_classes):
         return PhySSLNet(in_channels=in_channels, num_classes=num_classes, use_curvature=False)
     elif "no_token_mixer" in model_name:
         return PhySSLNet(in_channels=in_channels, num_classes=num_classes, use_token_mixer=False)
-    elif "c_mixer" in model_name or "cmixer" in model_name:
-        return CMixer(in_channels=in_channels, num_classes=num_classes)
     elif "vanilla_cnn" in model_name:
         return VanillaCNN(in_channels=in_channels, num_classes=num_classes)
     elif "vgg16" in model_name:

@@ -40,7 +40,7 @@
    - Test-time preprocessing is strictly deterministic.
 3. **Label-Fraction Generation:**
    - Controlled subsets (100%, 50%, 25%, 10%) are generated using deterministic stratified subsampling with a fixed seed.
-   - The exact same labelled subsets are shared across PhySSL-Net, C-Mixer, VGG16, ResNet50V2, and Vanilla CNN to ensure rigorous fairness.
+   - The exact same labelled subsets are shared across PhySSL-Net, VGG16, ResNet50V2, and Vanilla CNN to ensure rigorous fairness.
 4. **Self-Supervised Unlabelled Preparation:**
    - 100% of the training split is utilized for SSL pretraining with labels completely detached and inaccessible to the encoder.
 

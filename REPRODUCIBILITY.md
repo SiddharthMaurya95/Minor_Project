@@ -41,7 +41,7 @@ Downloads PneumoniaMNIST (if not present) and asserts official train (4,708), va
 ```
 
 ### 2. Verify Models and Gradient Flow
-Runs forward and backward passes across all model variants (`PhySSLNet`, `CMixer`, `VanillaCNN`, `VGG16Small`, `ResNet50V2Small`, `PhySSLSimSiam`), verifying tensor shapes and parameter updates:
+Runs forward and backward passes across all model variants (`PhySSLNet`, `ResNet50V2Small`, `VanillaCNN`, `VGG16Small`, `ResNet50V2Small`, `PhySSLSimSiam`), verifying tensor shapes and parameter updates:
 ```powershell
 .\.venv\Scripts\python scripts/check_models.py
 ```

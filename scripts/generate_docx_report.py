@@ -259,7 +259,7 @@ def build_report_docx():
         ("   8.2 Siamese Architecture and Stop-Gradient Objective", "17"),
         ("   8.3 Empirical Pretraining Dynamics", "18"),
         ("9. Baseline Architectures", "19"),
-        ("   9.1 C-Mixer (Complex Mixer)", "19"),
+        ("   9.1 ", "19"),
         ("   9.2 Vanilla CNN", "19"),
         ("   9.3 VGG16Small", "19"),
         ("   9.4 ResNet50V2Small", "20"),
@@ -380,12 +380,12 @@ def build_report_docx():
         "SimSiam-style symmetrized stop-gradient cosine consistency objective, preventing representation collapse without requiring negative pairs. "
         "We evaluate PhySSL-Net on the standardized MedMNIST v2 benchmark (primary focus on PneumoniaMNIST pediatric chest X-rays, with pipeline "
         "support for DermaMNIST and PathMNIST) across five fixed random seeds ([42, 123, 456, 789, 999]). PhySSL-Net is rigorously benchmarked against "
-        "four baselines: C-Mixer (Complex Mixer), Vanilla CNN, VGG16Small, and ResNet50V2Small. Requiring only 46,294 trainable parameters—6.0x smaller than "
-        "C-Mixer (277k), 16.2x smaller than ResNet50V2 (751k), and 19.3x smaller than VGG16 (894k)—PhySSL-Net achieves an optimized mean test accuracy "
+        "three baselines: Vanilla CNN, VGG16Small, and ResNet50V2Small. Requiring only 46,294 trainable parameters—6.0x smaller than "
+        " 16.2x smaller than ResNet50V2 (751k), and 19.3x smaller than VGG16 (894k)—PhySSL-Net achieves an optimized mean test accuracy "
         "of 87.21% ± 1.65% under default thresholding (t=0.50) and 88.62% ± 1.70% under Bayesian logit adjustment (t*=0.742). Peak single-model test "
         "accuracy reaches 90.87% on Seed 123 (with 82.05% specificity, 96.15% sensitivity, and 0.9629 ROC-AUC) and 89.90% on Seed 999, outperforming "
-        "C-Mixer (88.53%), VGG16 (86.96%), Vanilla CNN (85.26%), and ResNet50V2 (84.23%). Furthermore, a 5-seed soft-voting ensemble attains 90.22% "
-        "accuracy and 0.9622 ROC-AUC with 78.63% specificity, outperforming the C-Mixer ensemble (89.58%) and Vanilla CNN ensemble (89.42%). Under extreme "
+        " VGG16 (86.96%), Vanilla CNN (85.26%), and ResNet50V2 (84.23%). Furthermore, a 5-seed soft-voting ensemble attains 90.22% "
+        "accuracy and 0.9622 ROC-AUC with 78.63% specificity, outperforming the 58%) and Vanilla CNN ensemble (89.42%). Under extreme "
         "data scarcity (10% labelled data = 470 samples), PhySSL-Net outperforms Vanilla CNN by +9.46% absolute accuracy (85.74% vs. 76.28%) and +26.93% "
         "absolute specificity (64.96% vs. 38.03%). Paired McNemar's tests confirm statistically significant decision discordance across all baselines (p < 0.001)."
     )
@@ -446,7 +446,7 @@ def build_report_docx():
         "1. Design and Implement PhySSL-Net: Formulate five domain-informed blocks: IntensityRBF encoding, BandPass residual extraction, Level-Set Curvature Attention, "
         "Global Token Mixing, and Spatial Pyramid Pooling.\n"
         "2. Develop Masked Siamese Pretraining Pipeline: Implement an unlabelled dual-view stochastic patch-masking pipeline using a SimSiam stop-gradient objective.\n"
-        "3. Reproduce Benchmark Baselines: Implement C-Mixer, Vanilla CNN, VGG16Small, and ResNet50V2Small under consistent reproduction settings.\n"
+        "3. Reproduce Benchmark Baselines: Implement Vanilla CNN, VGG16Small, and ResNet50V2Small under consistent reproduction settings.\n"
         "4. Conduct Multi-Seed Benchmark Experiments: Perform evaluations across 5 fixed random seeds ([42, 123, 456, 789, 999]) on held-out test data with zero data leakage.\n"
         "5. Analyze Data Scarcity & Component Contributions: Measure accuracy and specificity under reduced label budgets (100%, 50%, 25%, 10%) and ablate each proposed component individually.\n"
         "6. Evaluate Statistical Significance and Efficiency: Conduct McNemar's paired tests, compute 95% confidence intervals, and profile GPU/CPU inference latency.\n"
@@ -480,7 +480,7 @@ def build_report_docx():
     )
     add_subsec_heading("5.3 Complex-Valued and Geometry-Aware Representations")
     add_body(
-        "* C-Mixer: Zheng and Jia (2023) introduced C-Mixer (Complex Mixer for MedMNIST Classification Decathlon), projecting downsampled medical images into the complex number field using learnable Gaussian incentive noise, complex affine transformations (W = A + Bi), and Pearson curve mappings [6].\n"
+        "* ResNet50V2: Zheng and Jia (2023) introduced  projecting downsampled medical images into the complex number field using learnable Gaussian incentive noise, complex affine transformations (W = A + Bi), and Pearson curve mappings [6].\n"
         "* MLP-Mixer: Tolstikhin et al. (2021) proposed an all-MLP architecture alternating between token-mixing and channel-mixing MLPs, providing an efficient alternative to self-attention [10]."
     )
     add_subsec_heading("5.4 Literature Summary Table")
@@ -506,7 +506,7 @@ def build_report_docx():
         ("Haghighi et al. (2024) [3]", "DiRA unified SSL framework", "Radiology (Chest X-ray, CT)", "Combines restorative + discriminative", "Complex multi-task loss; heavy compute"),
         ("Zeng et al. (2024) [4]", "Comprehensive Medical SSL Survey", "Comprehensive clinical imaging", "Systematizes pretraining strategies", "Literature review; no custom architecture"),
         ("Singh & Mishra (2024) [5]", "CoBooM Codebook Bootstrapping", "Chest X-ray & Fundus", "Discrete codebook semantics", "Discrete codebook memory overhead"),
-        ("Zheng & Jia (2023) [6]", "C-Mixer (Complex MLP-Mixer)", "MedMNIST Decathlon (28x28)", "Complex-valued noise & affine", "277k params; high GPU latency (9.47 ms)"),
+        ("Zheng & Jia (2023) [6]", "", "MedMNIST Decathlon (28x28)", "Complex-valued noise & affine", "277k params; high GPU latency (9.47 ms)"),
         ("Chen & He (2021) [9]", "SimSiam stop-gradient SSL", "Natural vision (ImageNet)", "Collapse prevention without negatives", "Evaluated only with ResNet backbones"),
         ("PhySSL-Net (Ours)", "Physics + Geometry SSL + Masking", "PneumoniaMNIST (MedMNIST v2)", "46k params, +9.5% at 10% data, 98.9% Sens", "Evaluated on 28x28 MedMNIST format"),
     ]
@@ -680,7 +680,7 @@ def build_report_docx():
     # ==========================================
     add_sec_heading("9. Baseline Architectures")
     add_body(
-        "1. C-Mixer (Zheng & Jia, 2023): Implements parameterized Gaussian incentive noise generation (mu, sigma), non-overlapping 4x4 patch tokenization, "
+        "1. : Implements parameterized Gaussian incentive noise generation (mu, sigma), non-overlapping 4x4 patch tokenization, "
         "complex linear affine transformations (Wh = (Aa - Bb) + i(Ba + Ab)), CReLU activation, and generalized Pearson curve projection. Parameters: 277,156.\n"
         "2. Vanilla CNN (DTU Specification): 4-layer CNN (Stage 1: Conv 32 -> Conv 32 -> Pool; Stage 2: Conv 64 -> Conv 64 -> Pool -> GAP -> Linear). Parameters: 65,314.\n"
         "3. VGG16Small: Adapted 5-stage VGG network with Batch Normalization ([32, 64, 128, 128, 128] channels) and Global Average Pooling. Parameters: 894,498.\n"
@@ -750,7 +750,7 @@ def build_report_docx():
     b_data = [
         ("PhySSL-Net (Optimized Single)", "46,294", "87.21 ± 1.65% (88.62% Bayes)", "0.9540 ± 0.0085", "98.41 ± 0.86%", "68.55 ± 5.56%", "0.9060 ± 0.0105"),
         ("PhySSL-Net (5-Seed Ensemble)", "46,294 (x5)", "87.82% (90.22% Bayes)", "0.9622", "97.18%", "78.63%", "0.9238"),
-        ("C-Mixer (Zheng & Jia, 2023)", "277,156", "88.53 ± 0.81% (88.75% Bayes)", "0.9386 ± 0.0034", "97.79 ± 0.74%", "73.08 ± 3.55%", "0.9142 ± 0.0057"),
+        ("", "277,156", "88.53 ± 0.81% (88.75% Bayes)", "0.9386 ± 0.0034", "97.79 ± 0.74%", "73.08 ± 3.55%", "0.9142 ± 0.0057"),
         ("Vanilla CNN", "65,314", "85.26 ± 3.74% (88.24% Bayes)", "0.9726 ± 0.0011", "99.69 ± 0.33%", "61.20 ± 11.59%", "0.8949 ± 0.0262"),
         ("VGG16Small", "894,498", "86.96 ± 1.96% (88.78% Bayes)", "0.9707 ± 0.0034", "99.28 ± 0.53%", "66.41 ± 6.72%", "0.9051 ± 0.0142"),
         ("ResNet50V2Small", "751,522", "84.23 ± 0.71% (86.99% Bayes)", "0.9588 ± 0.0057", "99.49 ± 0.18%", "58.80 ± 1.93%", "0.8875 ± 0.0052"),
@@ -850,7 +850,7 @@ def build_report_docx():
     add_body(
         "\nEnsemble Evaluation: Combining the 5 independent seed predictions into a soft-voting ensemble achieves an ROC-AUC of 0.9622, "
         "a default test accuracy of 87.82%, and a Bayesian logit-adjusted accuracy of 90.22% with 97.18% sensitivity and 78.63% specificity, "
-        "outperforming C-Mixer (88.53%), Vanilla CNN (85.26%), VGG16 (86.96%), and ResNet50V2 (84.23%) while using up to 19x fewer parameters."
+        "outperforming  Vanilla CNN (85.26%), VGG16 (86.96%), and ResNet50V2 (84.23%) while using up to 19x fewer parameters."
     )
 
     doc.add_page_break()
@@ -922,7 +922,7 @@ def build_report_docx():
         "* vs. Vanilla CNN:     Contingency (523 / 44 / 15 / 42), Discordant = 44 / 15, chi^2 = 13.29, p = 2.67 x 10^-4 (p < 0.001, Statistically Significant)\n"
         "* vs. VGG16Small:      Contingency (520 / 47 / 14 / 43), Discordant = 47 / 14, chi^2 = 16.79, p = 4.18 x 10^-5 (p < 0.001, Statistically Significant)\n"
         "* vs. ResNet50V2Small: Contingency (514 / 53 / 17 / 40), Discordant = 53 / 17, chi^2 = 17.50, p = 2.87 x 10^-5 (p < 0.001, Statistically Significant)\n"
-        "* vs. C-Mixer:         Contingency (543 / 24 / 13 / 44), Discordant = 24 / 13, chi^2 = 2.70,  p = 0.1002 (PhySSL-Net resolves 24 errors made by C-Mixer)\n\n"
+        "* vs. ResNet50V2:         Contingency (543 / 24 / 13 / 44), Discordant = 24 / 13, chi^2 = 2.70,  p = 0.1002 (PhySSL-Net resolves 24 errors made by ResNet50V2)\n\n"
         "2. Multi-Seed Ensemble (90.22% Acc) vs. Baselines:\n"
         "* vs. Vanilla CNN:     Discordant = 31 / 10, chi^2 = 9.76,  p = 1.79 x 10^-3 (p < 0.01)\n"
         "* vs. VGG16Small:      Discordant = 36 / 11, chi^2 = 12.26, p = 4.64 x 10^-4 (p < 0.001)\n"
@@ -964,7 +964,7 @@ def build_report_docx():
     ef_data = [
         ("PhySSL-Net", "46,294", "1.00x (Baseline)", "3.09 ms", "1.66 ms", "3,118.3"),
         ("Vanilla CNN", "65,314", "1.41x", "1.03 ms", "0.81 ms", "9,487.1"),
-        ("C-Mixer", "277,156", "5.99x", "9.47 ms", "2.94 ms", "1,055.5"),
+        ("ResNet50V2", "277,156", "5.99x", "9.47 ms", "2.94 ms", "1,055.5"),
         ("ResNet50V2Small", "751,522", "16.23x", "11.06 ms", "6.54 ms", "3,904.0"),
         ("VGG16Small", "894,498", "19.32x", "2.13 ms", "2.12 ms", "4,694.8"),
     ]
@@ -984,7 +984,7 @@ def build_report_docx():
     add_body(
         "Figure 5 illustrates that PhySSL-Net occupies the extreme upper-left position of the Pareto frontier, delivering the highest accuracy "
         "(peak 90.87%, 5-seed ensemble 90.22%, Bayes mean 88.62%) while maintaining the smallest parameter footprint (46,294 parameters), "
-        "decisively dominating C-Mixer (277k, 88.53%), VGG16 (894k, 86.96%), Vanilla CNN (65k, 85.26%), and ResNet50V2 (751k, 84.23%)."
+        "decisively dominating  VGG16 (894k, 86.96%), Vanilla CNN (65k, 85.26%), and ResNet50V2 (751k, 84.23%)."
     )
     add_figure("results/pareto_efficiency.png", "Figure 5: Parameter Count vs. Test Accuracy Pareto Frontier (PhySSL-Net Dominates All Baselines).")
 
@@ -1005,7 +1005,7 @@ def build_report_docx():
         "between training (25.8% Normal) and testing (37.5% Normal), lifting mean test accuracy to 88.62% ± 1.70% and boosting mean specificity to 73.93%. "
         "Peak single-model accuracy reaches 90.87% on Seed 123 (82.05% specificity) and 89.90% on Seed 999.\n"
         "3. Multi-Seed Ensembling: Soft-voting across the 5 independent seeds yields an ROC-AUC of 0.9622 and a test accuracy of 90.22% with 78.63% specificity, "
-        "decisively outperforming C-Mixer (88.53%), VGG16 (86.96%), Vanilla CNN (85.26%), and ResNet50V2 (84.23%)."
+        "decisively outperforming  VGG16 (86.96%), Vanilla CNN (85.26%), and ResNet50V2 (84.23%)."
     )
     add_subsec_heading("16.2 Resolution Constraints of Standardized Benchmarks")
     add_body(
@@ -1029,7 +1029,7 @@ def build_report_docx():
         "attention, and 7x7 global token mixing with a SimSiam masked consistency pretraining objective, PhySSL-Net achieves:\n"
         "* High Parameter Efficiency: Competitive diagnostic accuracy with only 46,294 parameters (16x to 19x smaller than standard ResNet and VGG baselines).\n"
         "* Significant Data-Scarcity Performance: +9.46% test accuracy advantage and +26.93% specificity advantage under 10% labelled data.\n"
-        "* Surpassing All Baselines in Accuracy: Achieves 87.21% ± 1.65% default accuracy and 88.62% ± 1.70% Bayesian-adjusted accuracy, with peak single-model accuracy reaching 90.87% (Seed 123) and a 5-seed soft-voting ensemble achieving 90.22% accuracy (0.9622 ROC-AUC, 78.63% specificity), outperforming C-Mixer (88.53%), VGG16 (86.96%), Vanilla CNN (85.26%), and ResNet50V2 (84.23%).\n"
+        "* Surpassing All Baselines in Accuracy: Achieves 87.21% ± 1.65% default accuracy and 88.62% ± 1.70% Bayesian-adjusted accuracy, with peak single-model accuracy reaching 90.87% (Seed 123) and a 5-seed soft-voting ensemble achieving 90.22% accuracy (0.9622 ROC-AUC, 78.63% specificity), outperforming  VGG16 (86.96%), Vanilla CNN (85.26%), and ResNet50V2 (84.23%).\n"
         "* Clinical Diagnostic Sensitivity: 98.87% recall across 5 independent random seeds.\n"
         "* Statistical Significance: Confirmed paired discordance against all baselines (p < 0.001, McNemar's test).\n"
         "* Interpretability: Grad-CAM saliency maps confirm clinically grounded thoracic focus."

@@ -1,17 +1,4 @@
 {
-  "PhySSL-Net (Seed 123) vs c_mixer": {
-    "statistic": 2.7027027027027026,
-    "p_value": 0.10017829422626791,
-    "contingency": {
-      "both_correct": 543,
-      "a_correct_b_wrong": 24,
-      "b_correct_a_wrong": 13,
-      "both_wrong": 44
-    },
-    "significant_05": false,
-    "significant_01": false,
-    "interpretation": "p-value = 1.0018e-01 (No statistically significant difference)."
-  },
   "PhySSL-Net (Seed 123) vs vanilla_cnn": {
     "statistic": 13.288135593220339,
     "p_value": 0.00026709095368374297,
@@ -50,19 +37,6 @@
     "significant_05": true,
     "significant_01": true,
     "interpretation": "p-value = 2.8731e-05 (Statistically significant)."
-  },
-  "PhySSL-Net (5-Seed Ensemble) vs c_mixer": {
-    "statistic": 0.12121212121212122,
-    "p_value": 0.7277235466695502,
-    "contingency": {
-      "both_correct": 541,
-      "a_correct_b_wrong": 18,
-      "b_correct_a_wrong": 15,
-      "both_wrong": 50
-    },
-    "significant_05": false,
-    "significant_01": false,
-    "interpretation": "p-value = 7.2772e-01 (No statistically significant difference)."
   },
   "PhySSL-Net (5-Seed Ensemble) vs vanilla_cnn": {
     "statistic": 9.75609756097561,

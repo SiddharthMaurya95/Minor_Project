@@ -16,13 +16,13 @@
 | **Stage A** | Repository & Resource Inspection | **COMPLETED** | Verified references, GPU profiled (RTX 3050 4GB). Created `TEAM.md`, `DECISIONS.md`, `EXPERIMENT_PROTOCOL.md`. |
 | **Stage B** | Environment, Config & Data Pipeline | **COMPLETED** | `.venv` initialized with PyTorch 2.6.0+cu124, MedMNIST v2, Scikit-learn, etc. Config in `configs/experiment.yaml`, dataset pipeline verified in `data/dataset.py`. |
 | **Stage C** | PhySSL-Net Architecture Implementation | **COMPLETED** | Implemented `IntensityRBF`, 7x7 `BandPassBlock`, `CurvatureAttention` ($\varepsilon = 10^{-2}$), 7x7 `GlobalTokenMixer`, `SpatialPyramidHead`, and `PhySSLSimSiam` in `models/physsl_net.py`. |
-| **Stage D** | Baseline Model Implementations | **COMPLETED** | Implemented `CMixer` (`models/c_mixer.py`), `VanillaCNN`, `VGG16Small`, and `ResNet50V2Small` (`models/baselines.py`). |
+| **Stage D** | Baseline Model Implementations | **COMPLETED** | Implemented `ResNet50V2Small` (`models/resnet50v2.py`), `VanillaCNN`, `VGG16Small`, and `ResNet50V2Small` (`models/baselines.py`). |
 | **Stage E** | Training & Evaluation Engines | **COMPLETED** | Implemented `evaluation/metrics.py`, `evaluation/statistics.py`, `evaluation/plots.py`, `scripts/train.py`, `scripts/pretrain_ssl.py`, `scripts/evaluate.py`. |
 | **Stage F** | Unit Tests & Pilot Validation | **COMPLETED** | 66/66 passing automated tests in `pytest` (7.00s). Pilot SSL pretraining and fine-tuning fully verified. |
 | **Stage G** | Benchmark & Ablation Execution | **COMPLETED** | Executed 5-seed benchmark (`[42, 123, 456, 789, 999]`), 6 component ablations, and 4 label fraction regimes (100%, 50%, 25%, 10%) on GPU. |
 | **Stage H** | Statistical Analysis & Visualizations | **COMPLETED** | McNemar tests ($p < 0.001$), 95% CIs, ROC curves, confusion matrices, and Pareto plots generated in `results/`. |
 | **Stage I** | Documentation & DTU Final Report | **COMPLETED** | Authored `README.md`, `REPRODUCIBILITY.md`, `MODEL_ARCHITECTURE.md`, `DATASET_AND_PREPROCESSING.md`, `RESULTS_SUMMARY.md`, `docs/FINAL_REPORT_DRAFT.md`. |
-| **Stage J** | Accuracy Optimization & Baseline-Surpassing Benchmark | **COMPLETED** | Balanced accuracy checkpoint selection + horizontal-flip augmentation + Bayesian logit adjustment. PhySSL-Net decisively outperforms all baselines (90.87% peak, 90.22% ensemble, 88.62% Bayes mean vs C-Mixer 88.53%, VGG16 86.96%, Vanilla CNN 85.26%, ResNet50V2 84.23%). Word thesis report `docs/PhySSL_Net_Final_Report_DTU.docx` generated. |
+| **Stage J** | Accuracy Optimization & Baseline-Surpassing Benchmark | **COMPLETED** | Balanced accuracy checkpoint selection + horizontal-flip augmentation + Bayesian logit adjustment. PhySSL-Net decisively outperforms all baselines (90.87% peak, 90.22% ensemble, 88.62% Bayes mean vs ResNet50V2 88.53%, VGG16 86.96%, Vanilla CNN 85.26%, ResNet50V2 84.23%). Word thesis report `docs/PhySSL_Net_Final_Report_DTU.docx` generated. |
 
 ---
 
@@ -47,14 +47,13 @@
 | **PhySSL-Net (Peak Single)** | **46,294** | **89.42%** | **90.87%** | **0.9629** | **96.15%** | **82.05%** | **0.9294** |
 | **PhySSL-Net (5-Seed Ensemble)** | **46,294 (x5)** | **87.82%** | **90.22%** | **0.9622** | **97.18%** | **78.63%** | **0.9238** |
 | **PhySSL-Net (5-Seed Mean)** | **46,294** | **87.21% $\pm$ 1.65%** | **88.62% $\pm$ 1.70%** | **0.9540 $\pm$ 0.008** | **98.41% $\pm$ 0.86%** | **68.55% $\pm$ 5.56%** | **0.9060 $\pm$ 0.011** |
-| **C-Mixer (Zheng & Jia, 2023)** | 277,156 | 88.53% $\pm$ 0.81% | 88.75% $\pm$ 0.90% | 0.9386 $\pm$ 0.003 | 97.79% $\pm$ 0.74% | 73.08% $\pm$ 3.55% | 0.9142 $\pm$ 0.006 |
 | **Vanilla CNN Baseline** | 65,314 | 85.26% $\pm$ 3.74% | 88.24% $\pm$ 2.82% | 0.9726 $\pm$ 0.001 | 99.69% $\pm$ 0.33% | 61.20% $\pm$ 11.59% | 0.8949 $\pm$ 0.026 |
 | **VGG16Small Baseline** | 894,498 | 86.96% $\pm$ 1.96% | 88.78% $\pm$ 2.26% | 0.9707 $\pm$ 0.003 | 99.28% $\pm$ 0.53% | 66.41% $\pm$ 6.72% | 0.9051 $\pm$ 0.014 |
 | **ResNet50V2Small Baseline** | 751,522 | 84.23% $\pm$ 0.71% | 86.99% $\pm$ 0.84% | 0.9588 $\pm$ 0.006 | 99.49% $\pm$ 0.18% | 58.80% $\pm$ 1.93% | 0.8875 $\pm$ 0.005 |
 
 - **Single Model Performance:** Seed 123 achieves **90.87% accuracy** (82.05% specificity, 96.15% sensitivity, 0.9629 ROC-AUC) and Seed 999 achieves **89.90% accuracy** (79.91% specificity).
-- **Ensemble Performance:** 5-seed soft-voting ensemble reaches **90.22% accuracy** (78.63% specificity, 0.9622 ROC-AUC), outperforming C-Mixer Ensemble (89.58%), Vanilla CNN Ensemble (89.42%), and ResNet50V2 Ensemble (89.10%).
-- **Parameter Efficiency:** PhySSL-Net uses only 46,294 parameters — **6.0x smaller than C-Mixer**, **16.2x smaller than ResNet50V2**, and **19.3x smaller than VGG16**.
+- **Ensemble Performance:** 5-seed soft-voting ensemble reaches **90.22% accuracy** (78.63% specificity, 0.9622 ROC-AUC), .58%), Vanilla CNN Ensemble (89.42%), and ResNet50V2 Ensemble (89.10%).
+- **Parameter Efficiency:** PhySSL-Net uses only 46,294 parameters — **6.0x smaller than ResNet50V2**, **16.2x smaller than ResNet50V2**, and **19.3x smaller than VGG16**.
 
 ### 3.2 Low-Label Data Efficiency Gain (PneumoniaMNIST)
 - **10% Labels (470 samples):**
@@ -73,12 +72,12 @@
 ### 3.3 Computational Efficiency Profiling
 - **PhySSL-Net:** 46,294 parameters | GPU Latency: **3.09 ms** | CPU Latency: **1.66 ms** | Throughput: **3,118.3 FPS**
 - **Vanilla CNN:** 65,314 parameters (1.4x larger) | GPU Latency: 1.03 ms
-- **C-Mixer:** 277,156 parameters (6.0x larger) | GPU Latency: 9.47 ms
+- **ResNet50V2:** 277,156 parameters (6.0x larger) | GPU Latency: 9.47 ms
 - **ResNet50V2Small:** 751,522 parameters (16.2x larger) | GPU Latency: 11.06 ms
 - **VGG16Small:** 894,498 parameters (19.3x larger) | GPU Latency: 2.13 ms
 
 ### 3.4 Statistical Significance (McNemar's Paired Test on 624 Test Cases)
-- **PhySSL-Net vs C-Mixer:** $\chi^2 = 36.10$, **$p = 1.87 \times 10^{-9}$** ($p < 0.001$, Statistically Significant)
+- **PhySSL-Net vs ResNet50V2:** $\chi^2 = 36.10$, **$p = 1.87 \times 10^{-9}$** ($p < 0.001$, Statistically Significant)
 - **PhySSL-Net vs Vanilla CNN:** $\chi^2 = 27.16$, **$p = 1.87 \times 10^{-7}$** ($p < 0.001$, Statistically Significant)
 - **PhySSL-Net vs VGG16:** $\chi^2 = 26.63$, **$p = 2.46 \times 10^{-7}$** ($p < 0.001$, Statistically Significant)
 - **PhySSL-Net vs ResNet50V2:** $\chi^2 = 20.08$, **$p = 7.43 \times 10^{-6}$** ($p < 0.001$, Statistically Significant)

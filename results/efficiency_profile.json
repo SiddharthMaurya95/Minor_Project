@@ -8,15 +8,6 @@
     "test_acc": 0.8388,
     "is_proposed": true
   },
-  "C-Mixer": {
-    "params": 277156,
-    "params_k": 277.16,
-    "macs_proxy": 54322576,
-    "gpu_latency_ms": 9.474,
-    "cpu_latency_ms": 2.943,
-    "test_acc": 0.82,
-    "is_proposed": false
-  },
   "Vanilla CNN": {
     "params": 65314,
     "params_k": 65.31,

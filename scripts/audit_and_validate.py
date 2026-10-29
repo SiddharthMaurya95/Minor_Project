@@ -18,7 +18,6 @@ import torch
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from data.dataset import build_dataloaders, load_medmnist_raw, get_stratified_subset_indices
 from models.physsl_net import PhySSLNet, PhySSLSimSiam
-from models.c_mixer import CMixer
 from models.baselines import VanillaCNN, VGG16Small, ResNet50V2Small
 
 
@@ -154,7 +153,6 @@ def run_comprehensive_audit():
     models_to_check = {
         "PhySSLNet (Full Proposed)": PhySSLNet(in_channels=1, num_classes=2),
         "PhySSLSimSiam (SSL Wrapper)": PhySSLSimSiam(encoder=PhySSLNet(in_channels=1, num_classes=2)),
-        "C-Mixer (Zheng & Jia Baseline)": CMixer(in_channels=1, num_classes=2),
         "Vanilla CNN Baseline": VanillaCNN(in_channels=1, num_classes=2),
         "VGG16Small Baseline": VGG16Small(in_channels=1, num_classes=2),
         "ResNet50V2Small Baseline": ResNet50V2Small(in_channels=1, num_classes=2),

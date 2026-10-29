@@ -3,7 +3,7 @@ Reusable Supervised Training & Fine-Tuning Engine for All Models.
 Supports:
 - PhySSLNet (with optional SSL pretrained encoder initialization)
 - Architectural ablations (no_rbf, no_bandpass, no_curvature, no_token_mixer)
-- Baselines (CMixer, VanillaCNN, VGG16Small, ResNet50V2Small)
+- Baselines (VanillaCNN, VGG16Small, ResNet50V2Small)
 - Strictly validation-driven checkpoint selection (Zero test leakage)
 - Label fractions (1.0, 0.5, 0.25, 0.10)
 - Fixed reproducible random seed
@@ -26,7 +26,6 @@ import torchvision.transforms as T
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from data.dataset import build_dataloaders
 from models.physsl_net import PhySSLNet
-from models.c_mixer import CMixer
 from models.baselines import VanillaCNN, VGG16Small, ResNet50V2Small
 from evaluation.metrics import compute_metrics
 
@@ -51,8 +50,6 @@ def build_model(model_name, in_channels, num_classes, dropout=0.2):
         return PhySSLNet(in_channels=in_channels, num_classes=num_classes, use_curvature=False, dropout=dropout)
     elif model_name == "no_token_mixer":
         return PhySSLNet(in_channels=in_channels, num_classes=num_classes, use_token_mixer=False, dropout=dropout)
-    elif model_name == "c_mixer" or model_name == "cmixer":
-        return CMixer(in_channels=in_channels, num_classes=num_classes, dropout=dropout)
     elif model_name == "vanilla_cnn":
         return VanillaCNN(in_channels=in_channels, num_classes=num_classes, dropout=dropout)
     elif model_name == "vgg16":

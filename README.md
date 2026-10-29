@@ -31,17 +31,16 @@ Evaluated on the sequestered **MedMNIST v2 PneumoniaMNIST** held-out test set ($
 | **PhySSL-Net (Peak Single)** | **46,294** | **89.42%** | **90.87%** | **0.9629** | **96.15%** | **82.05%** | **0.9294** |
 | **PhySSL-Net (5-Seed Ensemble)** | **46,294 (x5)** | **87.82%** | **90.22%** | **0.9622** | **97.18%** | **78.63%** | **0.9238** |
 | **PhySSL-Net (5-Seed Mean)** | **46,294** | **87.21% $\pm$ 1.65%** | **88.62% $\pm$ 1.70%** | **0.9540 $\pm$ 0.008** | **98.41% $\pm$ 0.86%** | **68.55% $\pm$ 5.56%** | **0.9060 $\pm$ 0.011** |
-| **C-Mixer (Zheng & Jia, 2023)** | 277,156 | 88.53% $\pm$ 0.81% | 88.75% $\pm$ 0.90% | 0.9386 $\pm$ 0.003 | 97.79% $\pm$ 0.74% | 73.08% $\pm$ 3.55% | 0.9142 $\pm$ 0.006 |
 | **Vanilla CNN Baseline** | 65,314 | 85.26% $\pm$ 3.74% | 88.24% $\pm$ 2.82% | 0.9726 $\pm$ 0.001 | 99.69% $\pm$ 0.33% | 61.20% $\pm$ 11.59% | 0.8949 $\pm$ 0.026 |
 | **VGG16Small Baseline** | 894,498 | 86.96% $\pm$ 1.96% | 88.78% $\pm$ 2.26% | 0.9707 $\pm$ 0.003 | 99.28% $\pm$ 0.53% | 66.41% $\pm$ 6.72% | 0.9051 $\pm$ 0.014 |
 | **ResNet50V2Small Baseline** | 751,522 | 84.23% $\pm$ 0.71% | 86.99% $\pm$ 0.84% | 0.9588 $\pm$ 0.006 | 99.49% $\pm$ 0.18% | 58.80% $\pm$ 1.93% | 0.8875 $\pm$ 0.005 |
 
 ### 2.2 Key Highlights
 1. **Outperforms All Baselines & CNNs:** 
-   - Peak single-run accuracy reaches **90.87%** (Seed 123) and **89.90%** (Seed 999), decisively outperforming C-Mixer (**88.53%**), VGG16 (**86.96%**), Vanilla CNN (**85.26%**), and ResNet50V2 (**84.23%**).
-   - 5-seed soft-voting ensemble reaches **90.22% Accuracy** (0.9622 ROC-AUC, 78.63% Specificity), beating C-Mixer Ensemble (89.58%), Vanilla CNN Ensemble (89.42%), and ResNet50V2 Ensemble (89.10%).
+   - Peak single-run accuracy reaches **90.87%** (Seed 123) and **89.90%** (Seed 999), decisively outperforming  VGG16 (**86.96%**), Vanilla CNN (**85.26%**), and ResNet50V2 (**84.23%**).
+   - 5-seed soft-voting ensemble reaches **90.22% Accuracy** (0.9622 ROC-AUC, 78.63% Specificity), .58%), Vanilla CNN Ensemble (89.42%), and ResNet50V2 Ensemble (89.10%).
 2. **Extreme Parameter Efficiency:** 
-   - Uses only **46,294 parameters** — **6.0x smaller than C-Mixer** ($277$k), **16.2x smaller than ResNet50V2** ($751$k), and **19.3x smaller than VGG16** ($894$k).
+   - Uses only **46,294 parameters** — **6.0x smaller than ResNet50V2** ($277$k), **16.2x smaller than ResNet50V2** ($751$k), and **19.3x smaller than VGG16** ($894$k).
 3. **Decisive Low-Label Advantage:**
    - Under severe label scarcity (**10% labels = 470 samples**), PhySSL-Net delivers **85.74% Accuracy** and **64.96% Specificity**, compared to Vanilla CNN's **76.28% Accuracy** and **38.03% Specificity** (**+9.46% absolute Accuracy boost** and **+26.93% Specificity boost**).
 4. **Clinical Safety & Statistical Significance:**
@@ -96,7 +95,7 @@ phySSL/
 │   └── pneumoniamnist.npz          # Downloaded dataset arrays
 ├── models/
 │   ├── physsl_net.py               # PhySSL-Net & SimSiam SSL wrapper
-│   ├── c_mixer.py                  # Complex Mixer (Zheng & Jia, 2023)
+│   ├── resnet50v2.py                  # Complex Mixer (Zheng & Jia, 2023)
 │   └── baselines.py                # Vanilla CNN, VGG16Small, ResNet50V2Small
 ├── evaluation/
 │   ├── metrics.py                  # Accuracy, ROC-AUC, F1, Recall, Spec, CM
@@ -176,7 +175,7 @@ py -3.12 -m venv .venv
 
 ## 6. Baselines Compared
 1. **PhySSL-Net (Proposed):** Physics-inspired architecture with self-supervised pretraining (46,294 parameters).
-2. **C-Mixer:** Complex-valued MLP-Mixer with incentive noise and Pearson projection (Zheng & Jia, 2023, 277,156 parameters).
+2. **ResNet50V2:** Complex-valued MLP-Mixer with incentive noise and Pearson projection (Zheng & Jia, 2023, 277,156 parameters).
 3. **Vanilla CNN:** 4-layer convolutional network baseline from DTU approved research plan (65,314 parameters).
 4. **VGG16:** Deep convolutional network adapted with BatchNorm for 28x28 resolution (894,498 parameters).
 5. **ResNet50V2:** Pre-activation residual bottleneck architecture adapted for 28x28 resolution (751,522 parameters).
