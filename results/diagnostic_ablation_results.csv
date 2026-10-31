@@ -1,0 +1,15 @@
+dataset,model_display,model_key,test_accuracy,test_roc_auc,test_f1,test_recall,test_specificity,parameters,train_time_sec
+breastmnist,PhySSL-Net (Orig Intensity-RBF),physsl_intensity_rbf,87.18,0.8544,0.9145,93.86,69.05,46294,3.6
+breastmnist,PhySSL-Net (ASG-RBF),physsl_asg_rbf,85.26,0.8853,0.8987,89.47,73.81,46318,2.9
+breastmnist,w/o Curvature Attention,no_curvature,85.26,0.8427,0.903,93.86,61.9,46262,2.3
+breastmnist,w/o Token Mixer,no_token_mixer,83.97,0.8164,0.8918,90.35,66.67,24562,2.0
+breastmnist,w/o BandPass,no_bandpass,85.9,0.8475,0.9076,94.74,61.9,43638,2.5
+breastmnist,Vanilla CNN + RBF,vanilla_cnn_rbf,83.97,0.853,0.8945,92.98,59.52,67634,2.1
+breastmnist,Vanilla CNN,vanilla_cnn,82.69,0.8363,0.8811,87.72,69.05,65314,1.9
+pathmnist,PhySSL-Net (Orig Intensity-RBF),physsl_intensity_rbf,82.42,0.9623,0.7735,78.4,0.0,53725,196.1
+pathmnist,PhySSL-Net (ASG-RBF),physsl_asg_rbf,82.28,0.9736,0.7739,78.44,0.0,53829,224.6
+pathmnist,w/o Curvature Attention,no_curvature,80.82,0.9599,0.7519,75.33,0.0,53693,191.2
+pathmnist,w/o Token Mixer,no_token_mixer,78.68,0.9262,0.724,73.05,0.0,31993,185.2
+pathmnist,w/o BandPass,no_bandpass,81.25,0.9379,0.7498,74.76,0.0,51069,182.9
+pathmnist,Vanilla CNN + RBF,vanilla_cnn_rbf,82.05,0.926,0.7557,75.67,0.0,73273,217.5
+pathmnist,Vanilla CNN,vanilla_cnn,86.07,0.9776,0.8067,80.4,0.0,66345,199.5

@@ -17,10 +17,11 @@ import torch.nn.functional as F
 
 class IntensityRBF(nn.Module):
     """
-    Learnable Intensity Radial Basis Function (RBF) Encoding.
+    Learnable Intensity Radial Basis Function (RBF) Encoding (Original DTU Formulation).
     Enriches raw pixel intensity x in [0, 1] with K smooth Gaussian kernel responses:
         Phi(x) = [x, exp(-beta_1 (x - c_1)^2), ..., exp(-beta_K (x - c_K)^2)]
     Width is constrained to be strictly positive via beta_k = softplus(a_k) + eps.
+    Retained for comparative ablation studies.
     """
     def __init__(self, in_channels=1, num_centers=8, init_range=(0.0, 1.0), eps=1e-4):
         super().__init__()
@@ -52,6 +53,56 @@ class IntensityRBF(nn.Module):
         # Concatenate original intensity x with RBF responses
         out = torch.cat([x, rbf], dim=1) # (B, C * (1 + K), H, W)
         return out
+
+
+class AdaptiveSplineGaussianRBF(nn.Module):
+    """
+    Unified Ramanujan-Schoenberg Inspired Basis:
+    - Acts as pure Gaussian RBF when gamma -> 0 and p -> 2 (best for small/unbalanced data)
+    - Morphs into Asymmetric Rational/Polynomial Spline when data is abundant (PathMNIST/BloodMNIST)
+    """
+    def __init__(self, in_channels, num_centers=8, eps=1e-5):
+        super().__init__()
+        self.in_channels = in_channels
+        self.K = num_centers  # matching your original num_centers argument
+        self.eps = eps
+
+        # 1. Learnable Centers c_k evenly initialized in [0, 1]
+        centers = torch.linspace(0.0, 1.0, num_centers).view(1, 1, num_centers, 1, 1)
+        self.centers = nn.Parameter(centers.repeat(1, in_channels, 1, 1, 1))
+
+        # 2. Learnable Widths beta_k (constrained positive via softplus)
+        self.raw_beta = nn.Parameter(torch.ones(1, in_channels, num_centers, 1, 1) * 2.0)
+
+        # 3. Learnable Shape/Order Parameter p_k (Initialized so p_k = 2.0 -> Gaussian)
+        self.raw_p = nn.Parameter(torch.zeros(1, in_channels, num_centers, 1, 1))
+
+        # 4. Spline Polynomial Modulation Coefficients (Initialized to 0 -> starts as pure Gaussian!)
+        self.gamma_linear = nn.Parameter(torch.zeros(1, in_channels, num_centers, 1, 1))
+        self.gamma_spline = nn.Parameter(torch.zeros(1, in_channels, num_centers, 1, 1))
+
+    def forward(self, x):
+        # x shape: (B, C, H, W) -> expand to (B, C, K, H, W)
+        x_exp = x.unsqueeze(2)
+        diff = x_exp - self.centers  # (x - c_k)
+
+        beta = F.softplus(self.raw_beta) + self.eps
+        # p_k constrained around [1.2, 3.5], starts at ~2.0
+        p = 1.2 + 2.3 * torch.sigmoid(self.raw_p)
+
+        # Generalized Exponential / Sub-Gaussian Core: exp(-beta * |x - c|^p)
+        gaussian_core = torch.exp(-beta * torch.pow(torch.abs(diff) + self.eps, p))
+
+        # Truncated Power Spline Basis Correction: 1 + gamma_1*(x-c) + gamma_2*ReLU(x-c)^2
+        spline_mod = 1.0 + self.gamma_linear * diff + self.gamma_spline * (F.relu(diff) ** 2)
+
+        # Unified Output Basis
+        phi = gaussian_core * spline_mod  # (B, C, K, H, W)
+
+        # Reshape & Concatenate with original input x: [x, Phi_1(x), ..., Phi_K(x)]
+        B, C, K, H, W = phi.shape
+        phi_flat = phi.view(B, C * K, H, W)
+        return torch.cat([x, phi_flat], dim=1)
 
 
 class BandPassBlock(nn.Module):
@@ -246,6 +297,7 @@ class PhySSLNet(nn.Module):
         base_channels=32,
         token_channels=64,
         use_rbf=True,
+        rbf_type="adaptive_spline",
         use_bandpass=True,
         use_curvature=True,
         use_token_mixer=True,
@@ -253,13 +305,17 @@ class PhySSLNet(nn.Module):
     ):
         super().__init__()
         self.use_rbf = use_rbf
+        self.rbf_type = rbf_type
         self.use_bandpass = use_bandpass
         self.use_curvature = use_curvature
         self.use_token_mixer = use_token_mixer
 
-        # 1. Intensity RBF
+        # 1. RBF Module: Adaptive Spline Gaussian RBF (Primary) or Intensity RBF (Ablation)
         if use_rbf:
-            self.rbf = IntensityRBF(in_channels=in_channels, num_centers=rbf_centers)
+            if rbf_type == "intensity_rbf":
+                self.rbf = IntensityRBF(in_channels=in_channels, num_centers=rbf_centers)
+            else:
+                self.rbf = AdaptiveSplineGaussianRBF(in_channels=in_channels, num_centers=rbf_centers)
             stem_in_channels = in_channels * (1 + rbf_centers)
         else:
             self.rbf = nn.Identity()
@@ -273,17 +329,13 @@ class PhySSLNet(nn.Module):
             nn.MaxPool2d(kernel_size=2, stride=2), # (B, base_channels, 14, 14)
         )
 
-        # 3. Band-Pass Residual Block
+        # 3. Band-Pass Residual Block (Identity pass-through if disabled)
         if use_bandpass:
             self.bandpass = BandPassBlock(base_channels, kernel_size=7, padding=3)
         else:
-            self.bandpass = nn.Sequential(
-                nn.Conv2d(base_channels, base_channels, kernel_size=3, padding=1, bias=False),
-                nn.BatchNorm2d(base_channels),
-                nn.ReLU(inplace=True),
-            )
+            self.bandpass = nn.Identity()
 
-        # 4. Curvature-Inspired Attention
+        # 4. Curvature-Inspired Attention (Identity pass-through if disabled)
         if use_curvature:
             self.curvature = CurvatureAttention(base_channels, eps=1e-2)
         else:

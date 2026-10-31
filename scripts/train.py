@@ -26,7 +26,7 @@ import torchvision.transforms as T
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from data.dataset import build_dataloaders
 from models.physsl_net import PhySSLNet
-from models.baselines import VanillaCNN, VGG16Small, ResNet50V2Small, ConvNeXtFemto
+from models.baselines import VanillaCNN, VanillaCNNRBF, VGG16Small, ResNet50V2Small, ConvNeXtFemto
 from evaluation.metrics import compute_metrics
 
 
@@ -42,16 +42,24 @@ def build_model(model_name, in_channels, num_classes, dropout=0.2):
     model_name = model_name.lower()
     if model_name == "physsl_net" or model_name == "physslnet":
         return PhySSLNet(in_channels=in_channels, num_classes=num_classes, dropout=dropout)
+    elif model_name == "physsl_asg_rbf":
+        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="adaptive_spline", dropout=dropout)
+    elif model_name == "physsl_intensity_rbf":
+        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf", dropout=dropout)
     elif model_name == "no_rbf":
         return PhySSLNet(in_channels=in_channels, num_classes=num_classes, use_rbf=False, dropout=dropout)
     elif model_name == "no_bandpass":
-        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, use_bandpass=False, dropout=dropout)
+        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf", use_bandpass=False, dropout=dropout)
     elif model_name == "no_curvature":
-        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, use_curvature=False, dropout=dropout)
+        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf", use_curvature=False, dropout=dropout)
     elif model_name == "no_token_mixer":
-        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, use_token_mixer=False, dropout=dropout)
+        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf", use_token_mixer=False, dropout=dropout)
     elif model_name == "vanilla_cnn":
         return VanillaCNN(in_channels=in_channels, num_classes=num_classes, dropout=dropout)
+    elif model_name == "vanilla_cnn_rbf":
+        return VanillaCNNRBF(in_channels=in_channels, num_classes=num_classes, dropout=dropout, rbf_type="gaussian")
+    elif model_name == "vanilla_cnn_asg_rbf":
+        return VanillaCNNRBF(in_channels=in_channels, num_classes=num_classes, dropout=dropout, rbf_type="adaptive_spline")
     elif model_name == "vgg16":
         return VGG16Small(in_channels=in_channels, num_classes=num_classes, dropout=dropout)
     elif model_name == "resnet50v2":
@@ -262,7 +270,10 @@ def train_model(
 
         # Checkpoint selection strictly based on validation performance
         if val_metric == 'balanced_acc':
-            val_score = 0.5 * (val_metrics['recall'] + val_metrics.get('specificity', 0.0))
+            if num_classes == 2:
+                val_score = 0.5 * (val_metrics['recall'] + val_metrics.get('specificity', 0.0))
+            else:
+                val_score = val_metrics['accuracy']
         elif val_metric == 'accuracy':
             val_score = val_metrics['accuracy']
         elif val_metric == 'loss':

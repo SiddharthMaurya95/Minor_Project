@@ -12,20 +12,28 @@ import torch.nn as nn
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from data.dataset import build_dataloaders
 from models.physsl_net import PhySSLNet
-from models.baselines import VanillaCNN, VGG16Small, ResNet50V2Small, ConvNeXtFemto
+from models.baselines import VanillaCNN, VanillaCNNRBF, VGG16Small, ResNet50V2Small, ConvNeXtFemto
 from evaluation.metrics import compute_metrics, apply_logit_adjustment, find_optimal_threshold
 
 
 def build_model(model_name, in_channels, num_classes):
     model_name = model_name.lower()
-    if "no_rbf" in model_name:
+    if "physsl_intensity_rbf" in model_name:
+        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf")
+    elif "physsl_asg_rbf" in model_name:
+        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="adaptive_spline")
+    elif "no_rbf" in model_name:
         return PhySSLNet(in_channels=in_channels, num_classes=num_classes, use_rbf=False)
     elif "no_bandpass" in model_name:
-        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, use_bandpass=False)
+        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf", use_bandpass=False)
     elif "no_curvature" in model_name:
-        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, use_curvature=False)
+        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf", use_curvature=False)
     elif "no_token_mixer" in model_name:
-        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, use_token_mixer=False)
+        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf", use_token_mixer=False)
+    elif "vanilla_cnn_asg_rbf" in model_name:
+        return VanillaCNNRBF(in_channels=in_channels, num_classes=num_classes, rbf_type="adaptive_spline")
+    elif "vanilla_cnn_rbf" in model_name:
+        return VanillaCNNRBF(in_channels=in_channels, num_classes=num_classes, rbf_type="gaussian")
     elif "vanilla_cnn" in model_name:
         return VanillaCNN(in_channels=in_channels, num_classes=num_classes)
     elif "vgg16" in model_name:

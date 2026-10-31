@@ -215,10 +215,14 @@ def test_multichannel_and_multiclass_support():
 
 
 def test_exact_parameter_count():
-    """Verify exact parameter count for PhySSLNet (46,294)."""
-    model = PhySSLNet(in_channels=1, num_classes=2)
-    num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    assert num_params == 46294, f"Expected 46,294 parameters, got {num_params}"
+    """Verify exact parameter count for PhySSLNet (46,318 with AdaptiveSplineGaussianRBF, 46,294 with IntensityRBF)."""
+    model_asg = PhySSLNet(in_channels=1, num_classes=2, rbf_type="adaptive_spline")
+    params_asg = sum(p.numel() for p in model_asg.parameters() if p.requires_grad)
+    assert params_asg == 46318, f"Expected 46,318 parameters for ASG-RBF, got {params_asg}"
+
+    model_orig = PhySSLNet(in_channels=1, num_classes=2, rbf_type="intensity_rbf")
+    params_orig = sum(p.numel() for p in model_orig.parameters() if p.requires_grad)
+    assert params_orig == 46294, f"Expected 46,294 parameters for IntensityRBF, got {params_orig}"
 
 
 def test_rbf_width_positivity():

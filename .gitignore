@@ -50,6 +50,8 @@ checkpoints/*.pth
 checkpoints/*.pt
 checkpoints/*.ckpt
 checkpoints/optimized/*.pth
+checkpoints/diagnostic/
+results/diagnostic/
 !checkpoints/.gitkeep
 !checkpoints/optimized/.gitkeep
 

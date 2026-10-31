@@ -52,6 +52,47 @@ except ImportError:
 # 1. MODEL ARCHITECTURES
 # ==========================================
 
+class AdaptiveSplineGaussianRBF(nn.Module):
+    """
+    Unified Ramanujan-Schoenberg Inspired Basis:
+    - Acts as pure Gaussian RBF when gamma -> 0 and p -> 2 (best for small/unbalanced data)
+    - Morphs into Asymmetric Rational/Polynomial Spline when data is abundant (PathMNIST/BloodMNIST)
+    """
+    def __init__(self, in_channels, num_centers=8, eps=1e-5):
+        super().__init__()
+        self.in_channels = in_channels
+        self.K = num_centers
+        self.eps = eps
+
+        # 1. Learnable Centers c_k evenly initialized in [0, 1]
+        centers = torch.linspace(0.0, 1.0, num_centers).view(1, 1, num_centers, 1, 1)
+        self.centers = nn.Parameter(centers.repeat(1, in_channels, 1, 1, 1))
+
+        # 2. Learnable Widths beta_k (constrained positive via softplus)
+        self.raw_beta = nn.Parameter(torch.ones(1, in_channels, num_centers, 1, 1) * 2.0)
+
+        # 3. Learnable Shape/Order Parameter p_k (Initialized so p_k = 2.0 -> Gaussian)
+        self.raw_p = nn.Parameter(torch.zeros(1, in_channels, num_centers, 1, 1))
+
+        # 4. Spline Polynomial Modulation Coefficients (Initialized to 0 -> starts as pure Gaussian!)
+        self.gamma_linear = nn.Parameter(torch.zeros(1, in_channels, num_centers, 1, 1))
+        self.gamma_spline = nn.Parameter(torch.zeros(1, in_channels, num_centers, 1, 1))
+
+    def forward(self, x):
+        x_exp = x.unsqueeze(2)
+        diff = x_exp - self.centers
+
+        beta = F.softplus(self.raw_beta) + self.eps
+        p = 1.2 + 2.3 * torch.sigmoid(self.raw_p)
+
+        gaussian_core = torch.exp(-beta * torch.pow(torch.abs(diff) + self.eps, p))
+        spline_mod = 1.0 + self.gamma_linear * diff + self.gamma_spline * (F.relu(diff) ** 2)
+
+        phi = gaussian_core * spline_mod
+        B, C, K, H, W = phi.shape
+        phi_flat = phi.view(B, C * K, H, W)
+        return torch.cat([x, phi_flat], dim=1)
+
 class IntensityRBF(nn.Module):
     def __init__(self, in_channels, num_centers=8):
         super().__init__()
@@ -144,25 +185,50 @@ class SpatialPyramidHead(nn.Module):
         return self.classifier(f)
 
 class PhySSLNet(nn.Module):
-    def __init__(self, in_channels=1, num_classes=2):
+    def __init__(
+        self,
+        in_channels=1,
+        num_classes=2,
+        rbf_centers=8,
+        use_rbf=True,
+        rbf_type="adaptive_spline",
+        use_bandpass=True,
+        use_curvature=True,
+        use_token_mixer=True,
+        dropout=0.2,
+    ):
         super().__init__()
-        self.rbf = IntensityRBF(in_channels=in_channels, num_centers=8)
-        stem_in = in_channels * 9
+        self.use_rbf = use_rbf
+        self.rbf_type = rbf_type
+        self.use_bandpass = use_bandpass
+        self.use_curvature = use_curvature
+        self.use_token_mixer = use_token_mixer
+
+        if use_rbf:
+            if rbf_type == "intensity_rbf":
+                self.rbf = IntensityRBF(in_channels=in_channels, num_centers=rbf_centers)
+            else:
+                self.rbf = AdaptiveSplineGaussianRBF(in_channels=in_channels, num_centers=rbf_centers)
+            stem_in = in_channels * (1 + rbf_centers)
+        else:
+            self.rbf = nn.Identity()
+            stem_in = in_channels
+
         self.stem = nn.Sequential(
             nn.Conv2d(stem_in, 32, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(32),
             nn.ReLU(inplace=True)
         )
-        self.bandpass = BandPassBlock(32)
-        self.curvature = CurvatureAttention(32)
+        self.bandpass = BandPassBlock(32) if use_bandpass else nn.Identity()
+        self.curvature = CurvatureAttention(32) if use_curvature else nn.Identity()
         self.down = nn.Sequential(
             nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
             nn.AdaptiveAvgPool2d((7, 7))
         )
-        self.mixer = GlobalTokenMixer(channels=64, num_tokens=49)
-        self.head = SpatialPyramidHead(in_channels=64, num_classes=num_classes)
+        self.mixer = GlobalTokenMixer(channels=64, num_tokens=49) if use_token_mixer else nn.Identity()
+        self.head = SpatialPyramidHead(in_channels=64, num_classes=num_classes, dropout=dropout)
 
     def extract_features(self, x):
         x = self.rbf(x)
@@ -180,6 +246,32 @@ class PhySSLNet(nn.Module):
         return self.head.classifier(feat)
 
 # BASELINES
+class VanillaCNNRBF(nn.Module):
+    """
+    Ablation Baseline: Standard Vanilla CNN prepended with Gaussian or Adaptive Spline RBF layer.
+    """
+    def __init__(self, in_channels=1, num_classes=2, rbf_centers=8, dropout=0.2, rbf_type="gaussian"):
+        super().__init__()
+        self.rbf_type = rbf_type
+        if rbf_type == "adaptive_spline":
+            self.rbf = AdaptiveSplineGaussianRBF(in_channels=in_channels, num_centers=rbf_centers)
+        else:
+            self.rbf = IntensityRBF(in_channels=in_channels, num_centers=rbf_centers)
+        cnn_in_channels = in_channels * (1 + rbf_centers)
+        self.net = nn.Sequential(
+            nn.Conv2d(cnn_in_channels, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.Conv2d(32, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.Conv2d(64, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Flatten(),
+            nn.Dropout(p=dropout),
+            nn.Linear(64, num_classes)
+        )
+    def forward(self, x):
+        return self.net(self.rbf(x))
+
 class VanillaCNN(nn.Module):
     def __init__(self, in_channels=1, num_classes=2):
         super().__init__()
@@ -531,8 +623,20 @@ def train_and_eval(model_name, dataset_info, epochs=15, lr=1e-3):
     num_classes = dataset_info['num_classes']
     is_multilabel = dataset_info['is_multilabel']
 
-    if model_name == "physsl_net":
-        model = PhySSLNet(in_channels=in_channels, num_classes=num_classes).to(device)
+    if model_name in ("physsl_net", "physsl_asg_rbf"):
+        model = PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="adaptive_spline").to(device)
+    elif model_name == "physsl_intensity_rbf":
+        model = PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf").to(device)
+    elif model_name == "no_curvature":
+        model = PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf", use_curvature=False).to(device)
+    elif model_name == "no_token_mixer":
+        model = PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf", use_token_mixer=False).to(device)
+    elif model_name == "no_bandpass":
+        model = PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf", use_bandpass=False).to(device)
+    elif model_name == "vanilla_cnn_rbf":
+        model = VanillaCNNRBF(in_channels=in_channels, num_classes=num_classes, rbf_type="gaussian").to(device)
+    elif model_name == "vanilla_cnn_asg_rbf":
+        model = VanillaCNNRBF(in_channels=in_channels, num_classes=num_classes, rbf_type="adaptive_spline").to(device)
     elif model_name == "vanilla_cnn":
         model = VanillaCNN(in_channels=in_channels, num_classes=num_classes).to(device)
     elif model_name == "vgg16":

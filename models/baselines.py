@@ -58,6 +58,31 @@ class VanillaCNN(nn.Module):
 
 
 # ==============================================================================
+# 1b. Vanilla CNN + Gaussian RBF Backbone (vanilla_cnn + RBF)
+# ==============================================================================
+class VanillaCNNRBF(nn.Module):
+    """
+    Vanilla CNN with prepended Gaussian RBF (or Adaptive Spline RBF) encoding.
+    Input: (B, C_in, 28, 28) -> RBF -> (B, C_in * (1 + K), 28, 28) -> Vanilla CNN backbone.
+    """
+    def __init__(self, in_channels=1, num_classes=2, base_channels=32, num_centers=8, dropout=0.2, rbf_type="gaussian"):
+        super().__init__()
+        from models.physsl_net import IntensityRBF, AdaptiveSplineGaussianRBF
+        if rbf_type == "adaptive_spline":
+            self.rbf = AdaptiveSplineGaussianRBF(in_channels=in_channels, num_centers=num_centers)
+        else:
+            self.rbf = IntensityRBF(in_channels=in_channels, num_centers=num_centers)
+        stem_in = in_channels * (1 + num_centers)
+        self.cnn = VanillaCNN(in_channels=stem_in, num_classes=num_classes, base_channels=base_channels, dropout=dropout)
+
+    def extract_features(self, x):
+        return self.cnn.extract_features(self.rbf(x))
+
+    def forward(self, x):
+        return self.cnn(self.rbf(x))
+
+
+# ==============================================================================
 # 2. VGG16 Adapted Baseline
 # ==============================================================================
 class VGG16Small(nn.Module):
@@ -287,5 +312,5 @@ class ConvNeXtFemto(nn.Module):
         return self.classifier(feat)
 
 
-__all__ = ['VanillaCNN', 'VGG16Small', 'ResNet50V2Small', 'ConvNeXtFemto', 'ConvNeXtBlock', 'LayerNormChannelsFirst']
+__all__ = ['VanillaCNN', 'VanillaCNNRBF', 'VGG16Small', 'ResNet50V2Small', 'ConvNeXtFemto', 'ConvNeXtBlock', 'LayerNormChannelsFirst']
 
