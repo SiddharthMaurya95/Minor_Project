@@ -40,7 +40,7 @@ def set_seed(seed=42):
 
 def build_model(model_name, in_channels, num_classes, dropout=0.2):
     model_name = model_name.lower()
-    if model_name == "physsl_net" or model_name == "physslnet":
+    if model_name in ("physsl_net", "physslnet", "physsl_net_ssl", "physsl_ssl"):
         return PhySSLNet(in_channels=in_channels, num_classes=num_classes, dropout=dropout)
     elif model_name == "physsl_asg_rbf":
         return PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="adaptive_spline", dropout=dropout)
@@ -158,6 +158,23 @@ def train_model(
     num_classes = loaders['info']['num_classes']
 
     model = build_model(model_name, in_channels, num_classes).to(device)
+
+    # Auto-pretrain SSL if model_name is physsl_net_ssl and no checkpoint exists
+    if ("ssl" in model_name) and not pretrained_path:
+        default_ssl_ckpt = os.path.join(save_dir, f"physsl_simsiam_{dataset_name}_pretrained.pth")
+        if not os.path.exists(default_ssl_ckpt):
+            from scripts.pretrain_ssl import pretrain_ssl
+            print(f"[+] Automatically executing Phase 1 SSL Pretraining for {model_name}...")
+            pretrain_ssl(
+                dataset_name=dataset_name,
+                data_dir=data_dir,
+                epochs=10,
+                batch_size=batch_size,
+                seed=seed,
+                device=device,
+                save_path=default_ssl_ckpt,
+            )
+        pretrained_path = default_ssl_ckpt
 
     # Optional: Load pretrained SSL weights
     if pretrained_path and os.path.exists(pretrained_path):

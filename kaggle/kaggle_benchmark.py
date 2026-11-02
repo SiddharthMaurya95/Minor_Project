@@ -245,6 +245,54 @@ class PhySSLNet(nn.Module):
         feat = self.extract_features(x)
         return self.head.classifier(feat)
 
+class PhySSLSimSiam(nn.Module):
+    """
+    Self-Supervised Learning Framework (PhySSL-SimSiam):
+    Masked Siamese Representation Learning with Stop-Gradient and Symmetrized Cosine Distance.
+    Pretrains the PhySSLNet backbone on unlabelled medical images using dual stochastic masked views.
+    """
+    def __init__(self, encoder: PhySSLNet, feature_dim=320, proj_dim=128, pred_dim=64):
+        super().__init__()
+        self.encoder = encoder
+
+        # Projection MLP: maps 320-dim feature representation -> 128-dim latent space
+        self.projector = nn.Sequential(
+            nn.Linear(feature_dim, proj_dim, bias=False),
+            nn.BatchNorm1d(proj_dim),
+            nn.ReLU(inplace=True),
+            nn.Linear(proj_dim, proj_dim, bias=False),
+            nn.BatchNorm1d(proj_dim, affine=False),
+        )
+
+        # Predictor MLP: predicts representation of opposing branch (128 -> 64 -> 128)
+        self.predictor = nn.Sequential(
+            nn.Linear(proj_dim, pred_dim, bias=False),
+            nn.BatchNorm1d(pred_dim),
+            nn.ReLU(inplace=True),
+            nn.Linear(pred_dim, proj_dim),
+        )
+
+    @staticmethod
+    def cosine_loss(p, z):
+        # Stop-gradient on target branch to prevent representation collapse
+        z = z.detach()
+        p = F.normalize(p, dim=1)
+        z = F.normalize(z, dim=1)
+        return -(p * z).sum(dim=1).mean()
+
+    def forward(self, x1, x2):
+        feat1 = self.encoder.extract_features(x1)
+        feat2 = self.encoder.extract_features(x2)
+
+        z1 = self.projector(feat1)
+        z2 = self.projector(feat2)
+
+        p1 = self.predictor(z1)
+        p2 = self.predictor(z2)
+
+        loss = 0.5 * self.cosine_loss(p1, z2) + 0.5 * self.cosine_loss(p2, z1)
+        return loss
+
 # BASELINES
 class VanillaCNNRBF(nn.Module):
     """
@@ -461,6 +509,64 @@ class ConvNeXtFemto(nn.Module):
 # 2. DATA LOADERS & DATASET WRAPPER
 # ==========================================
 
+
+class MaskedPairTransform:
+    """
+    Generates two stochastic masked views of the same input tensor for SimSiam SSL pretraining.
+    Divides the 28x28 image into 4x4 patches and randomly zeroes out 25% of patches in each view.
+    """
+    def __init__(self, img_size=28, patch_size=4, mask_ratio=0.25):
+        self.img_size = img_size
+        self.patch_size = patch_size
+        self.mask_ratio = mask_ratio
+        self.num_patches_1d = img_size // patch_size
+        self.total_patches = self.num_patches_1d * self.num_patches_1d
+        self.num_masked = int(round(self.total_patches * mask_ratio))
+
+    def _apply_mask(self, x):
+        masked_x = x.clone()
+        mask_indices = random.sample(range(self.total_patches), self.num_masked)
+        for idx in mask_indices:
+            row = idx // self.num_patches_1d
+            col = idx % self.num_patches_1d
+            r_start = row * self.patch_size
+            r_end = r_start + self.patch_size
+            c_start = col * self.patch_size
+            c_end = c_start + self.patch_size
+            masked_x[:, r_start:r_end, c_start:c_end] = 0.0
+        return masked_x
+
+    def __call__(self, x):
+        if random.random() > 0.5:
+            x_flip = torch.flip(x, dims=[-1])
+        else:
+            x_flip = x
+        view1 = self._apply_mask(x_flip)
+        view2 = self._apply_mask(x_flip)
+        return view1, view2
+
+class SSLMedMNISTDataset(Dataset):
+    """
+    Unlabelled Dataset for Self-Supervised Pretraining.
+    Returns dual stochastic masked views (v1, v2) for each sample.
+    Completely detaches labels to guarantee zero data leakage.
+    """
+    def __init__(self, images, patch_size=4, mask_ratio=0.25):
+        self.images = images
+        self.mask_tf = MaskedPairTransform(img_size=28, patch_size=patch_size, mask_ratio=mask_ratio)
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        img = self.images[idx]
+        if img.ndim == 2:
+            img = img[:, :, None]
+        img = torch.from_numpy(img).permute(2, 0, 1).float() / 255.0
+        x = (img - 0.5) / 0.5
+        v1, v2 = self.mask_tf(x)
+        return v1, v2
+
 class MedMNISTDataset(Dataset):
     def __init__(self, images, labels, is_multilabel=False):
         self.images = images
@@ -601,10 +707,15 @@ def load_medmnist_dataset(name="pneumoniamnist", batch_size=128, data_root="/kag
     val_loader = DataLoader(MedMNISTDataset(val_raw.imgs, val_raw.labels, is_multilabel), batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(MedMNISTDataset(test_raw.imgs, test_raw.labels, is_multilabel), batch_size=batch_size, shuffle=False)
 
+    ssl_dataset = SSLMedMNISTDataset(train_raw.imgs, patch_size=4, mask_ratio=0.25)
+    ssl_loader = DataLoader(ssl_dataset, batch_size=batch_size, shuffle=True, pin_memory=True, drop_last=True)
+
     return {
         'train_loader': train_loader,
         'val_loader': val_loader,
         'test_loader': test_loader,
+        'ssl_loader': ssl_loader,
+        'train_raw_imgs': train_raw.imgs,
         'in_channels': info['n_channels'],
         'num_classes': len(info['label']) if is_multilabel else len(info['label']),
         'is_multilabel': is_multilabel,
@@ -618,12 +729,63 @@ def load_medmnist_dataset(name="pneumoniamnist", batch_size=128, data_root="/kag
 # 3. TRAINING & EVALUATION FUNCTIONS
 # ==========================================
 
-def train_and_eval(model_name, dataset_info, epochs=15, lr=1e-3):
+
+def pretrain_ssl_encoder(dataset_info, ssl_epochs=8, lr=1e-3):
+    """
+    Phase 1: Self-Supervised Pretraining using PhySSL-SimSiam.
+    Trains encoder backbone on unlabelled images using dual stochastic masked views.
+    No labels are provided or used during this phase.
+    """
+    in_channels = dataset_info['in_channels']
+    ssl_loader = dataset_info['ssl_loader']
+    
+    encoder = PhySSLNet(in_channels=in_channels, num_classes=dataset_info['num_classes']).to(device)
+    ssl_model = PhySSLSimSiam(encoder=encoder).to(device)
+    
+    optimizer = torch.optim.AdamW(ssl_model.parameters(), lr=lr, weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=ssl_epochs, eta_min=1e-6)
+    
+    print(f"\n   [Phase 1: SSL Pretraining] Pretraining PhySSLSimSiam for {ssl_epochs} epochs (Unlabelled Data)...")
+    t0 = time.time()
+    for ep in range(1, ssl_epochs + 1):
+        ssl_model.train()
+        total_loss, n_batches = 0.0, 0
+        for v1, v2 in ssl_loader:
+            v1, v2 = v1.to(device), v2.to(device)
+            optimizer.zero_grad()
+            loss = ssl_model(v1, v2)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(ssl_model.parameters(), max_norm=5.0)
+            if HAS_TPU:
+                xm.optimizer_step(optimizer)
+            else:
+                optimizer.step()
+            total_loss += loss.item()
+            n_batches += 1
+        scheduler.step()
+        if HAS_TPU:
+            xm.mark_step()
+        if ep % max(1, ssl_epochs // 2) == 0 or ep == ssl_epochs:
+            print(f"       SSL Epoch [{ep:02d}/{ssl_epochs:02d}] - Negative Cosine Loss: {total_loss / max(1, n_batches):.4f}")
+            
+    ssl_time = time.time() - t0
+    print(f"   [Phase 1: SSL Pretraining] Completed in {ssl_time:.1f}s.")
+    return encoder.state_dict(), ssl_time
+
+def train_and_eval(model_name, dataset_info, epochs=15, lr=1e-3, pretrained_state_dict=None):
     in_channels = dataset_info['in_channels']
     num_classes = dataset_info['num_classes']
     is_multilabel = dataset_info['is_multilabel']
 
-    if model_name in ("physsl_net", "physsl_asg_rbf"):
+    if model_name in ("physsl_net_ssl", "physsl_ssl"):
+        model = PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="adaptive_spline").to(device)
+        if pretrained_state_dict is not None:
+            model_dict = model.state_dict()
+            filtered = {k: v for k, v in pretrained_state_dict.items() if k in model_dict and v.shape == model_dict[k].shape}
+            model_dict.update(filtered)
+            model.load_state_dict(model_dict)
+            print(f" (Loaded {len(filtered)}/{len(model_dict)} SSL Pretrained Tensors)", end="", flush=True)
+    elif model_name in ("physsl_net", "physsl_asg_rbf"):
         model = PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="adaptive_spline").to(device)
     elif model_name == "physsl_intensity_rbf":
         model = PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf").to(device)
@@ -759,6 +921,7 @@ if __name__ == "__main__":
     parser.add_argument("--datasets", nargs="+", default=["pneumoniamnist", "dermamnist", "breastmnist"],
                         help="List of 2D MedMNIST datasets to run (or 'all')")
     parser.add_argument("--epochs", type=int, default=15)
+    parser.add_argument("--ssl_epochs", type=int, default=8, help="Number of Self-Supervised pretraining epochs")
     parser.add_argument("--batch_size", type=int, default=256, help="Batch size (256 or 512 recommended for TPU v5e-8)")
     parser.add_argument("--output_dir", default="/kaggle/working")
     args = parser.parse_args()
@@ -772,7 +935,7 @@ if __name__ == "__main__":
     ]
 
     selected_datasets = all_2d if "all" in args.datasets else args.datasets
-    models = ["physsl_net", "convnext_femto", "vanilla_cnn", "vgg16", "resnet50v2"]
+    models = ["physsl_net_ssl", "physsl_net", "convnext_femto", "vanilla_cnn", "vgg16", "resnet50v2"]
 
     records = []
     print(f"\n=================================================================")
@@ -783,9 +946,16 @@ if __name__ == "__main__":
         print(f"\n--> Loading Dataset: {d_name.upper()}...")
         d_info = load_medmnist_dataset(d_name, batch_size=args.batch_size)
 
+        # Phase 1: Self-Supervised Pretraining for PhySSL-Net
+        ssl_state_dict = None
+        if any("ssl" in m for m in models):
+            ssl_state_dict, ssl_sec = pretrain_ssl_encoder(d_info, ssl_epochs=max(5, args.epochs // 2), lr=1e-3)
+
         for m_name in models:
-            print(f"  [+] Training & Evaluating {m_name.upper()} on {d_name} ({args.epochs} epochs)...", end="", flush=True)
-            res = train_and_eval(m_name, d_info, epochs=args.epochs)
+            display_str = "PHYSSL_NET (SSL PRETRAINED + FINE-TUNED)" if m_name == "physsl_net_ssl" else (
+                          "PHYSSL_NET (TRAINED FROM SCRATCH)" if m_name == "physsl_net" else m_name.upper())
+            print(f"  [+] Training & Evaluating {display_str} on {d_name} ({args.epochs} epochs)...", end="", flush=True)
+            res = train_and_eval(m_name, d_info, epochs=args.epochs, pretrained_state_dict=ssl_state_dict if "ssl" in m_name else None)
             print(f" Done! Acc: {res['test_accuracy']}% | AUC: {res['test_auc']} | Params: {res['params']:,}")
             records.append(res)
 
