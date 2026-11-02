@@ -743,7 +743,9 @@ def download_medmnist_file(dataset_name, data_root):
     return npz_path
 
 
-def load_medmnist_dataset(name="pneumoniamnist", batch_size=256, data_root="/kaggle/working/data"):
+def load_medmnist_dataset(name="pneumoniamnist", batch_size=256, data_root=None):
+    if data_root is None:
+        data_root = "/kaggle/working/data" if os.path.exists("/kaggle") else "./data"
     data_root = os.path.abspath(data_root)
     os.makedirs(data_root, exist_ok=True)
     npz_path = download_medmnist_file(name, data_root)
@@ -787,7 +789,7 @@ def load_medmnist_dataset(name="pneumoniamnist", batch_size=256, data_root="/kag
 
 
 # =====================================================================
-# 3. METRICS EVALUATOR (100% IDENTICAL TO evaluation/metrics.py)
+# 3. METRICS & 2-PHASE TRAINING ENGINE (PRETRAIN SSL + FINE-TUNING)
 # =====================================================================
 
 def compute_all_metrics(y_true, y_pred_prob, is_multiclass=False, is_multilabel=False):
@@ -844,10 +846,6 @@ def compute_all_metrics(y_true, y_pred_prob, is_multiclass=False, is_multilabel=
             'precision': prec, 'specificity': 0.0, 'balanced_acc': acc
         }
 
-
-# =====================================================================
-# 4. 2-PHASE TRAINING PIPELINE (PRETRAIN SSL + SUPERVISED FINE-TUNING)
-# =====================================================================
 
 def pretrain_ssl_encoder(dataset_info, ssl_epochs=8, lr=1e-3):
     """
@@ -1007,17 +1005,20 @@ def train_and_eval(model_name, dataset_info, epochs=15, lr=1e-3, pretrained_stat
 
 
 # =====================================================================
-# 5. BENCHMARK EXECUTION
+# 4. BENCHMARK EXECUTION
 # =====================================================================
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--datasets", nargs="+", default=["pneumoniamnist", "dermamnist", "breastmnist"],
                         help="List of 2D MedMNIST datasets to run (or 'all')")
+    parser.add_argument("--models", nargs="+", default=["physsl_net_ssl", "physsl_net", "convnext_femto", "vanilla_cnn", "vgg16", "resnet50v2"],
+                        help="List of models to benchmark (or 'all')")
     parser.add_argument("--epochs", type=int, default=15)
     parser.add_argument("--ssl_epochs", type=int, default=8, help="Number of Self-Supervised pretraining epochs")
     parser.add_argument("--batch_size", type=int, default=256, help="Batch size (256 or 512 for TPU/GPU)")
-    parser.add_argument("--output_dir", default="/kaggle/working")
+    default_out = "/kaggle/working" if os.path.exists("/kaggle") else "./benchmark_results"
+    parser.add_argument("--output_dir", default=default_out, help="Output directory for CSV and plots")
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
@@ -1028,8 +1029,12 @@ if __name__ == "__main__":
         "pathmnist", "octmnist", "tissuemnist"
     ]
 
+    available_models = [
+        "physsl_net_ssl", "physsl_net", "convnext_femto", "vanilla_cnn", "vgg16", "resnet50v2"
+    ]
+
     selected_datasets = all_2d if "all" in args.datasets else args.datasets
-    models = ["physsl_net_ssl", "physsl_net", "convnext_femto", "vanilla_cnn", "vgg16", "resnet50v2"]
+    models = available_models if "all" in args.models else args.models
 
     records = []
     print(f"\n=================================================================")
