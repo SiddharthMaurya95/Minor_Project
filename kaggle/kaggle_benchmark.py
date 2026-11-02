@@ -21,6 +21,7 @@ import seaborn as sns
 from sklearn.metrics import (
     roc_auc_score,
     accuracy_score,
+    balanced_accuracy_score,
     f1_score,
     recall_score,
     precision_score,
@@ -33,6 +34,21 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
+
+# =====================================================================
+# REPRODUCIBILITY & SEED CONFIGURATION
+# =====================================================================
+def set_seed(seed=42):
+    """Set deterministic random seeds for full reproducibility across NumPy, PyTorch, and Python."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
+set_seed(42)
 
 # =====================================================================
 # HARDWARE ACCELERATOR DETECTION: Google Cloud TPU v5e-8 / GPU / CPU
@@ -75,15 +91,16 @@ class AdaptiveSplineGaussianRBF(nn.Module):
         self.K = num_centers
         self.eps = eps
 
-        # 1. Learnable Centers c_k evenly initialized in [0, 1]
-        centers = torch.linspace(0.0, 1.0, num_centers).view(1, 1, num_centers, 1, 1)
+        # 1. Learnable Centers c_k evenly initialized in [-1.0, 1.0] matching image normalization
+        centers = torch.linspace(-1.0, 1.0, num_centers).view(1, 1, num_centers, 1, 1)
         self.centers = nn.Parameter(centers.repeat(1, in_channels, 1, 1, 1))
 
         # 2. Learnable Widths beta_k (constrained positive via softplus)
         self.raw_beta = nn.Parameter(torch.ones(1, in_channels, num_centers, 1, 1) * 2.0)
 
-        # 3. Learnable Shape/Order Parameter p_k (Initialized so p_k = 2.0 -> Gaussian)
-        self.raw_p = nn.Parameter(torch.zeros(1, in_channels, num_centers, 1, 1))
+        # 3. Learnable Shape/Order Parameter p_k (Exact p = 2.0 Gaussian initialization: logit((2.0 - 1.2)/2.3) = ln(0.8 / 1.5))
+        p_init_raw = math.log(0.8 / 1.5)
+        self.raw_p = nn.Parameter(torch.full((1, in_channels, num_centers, 1, 1), p_init_raw))
 
         # 4. Spline Polynomial Modulation Coefficients (Initialized to 0 -> starts as pure Gaussian!)
         self.gamma_linear = nn.Parameter(torch.zeros(1, in_channels, num_centers, 1, 1))
@@ -111,7 +128,8 @@ class IntensityRBF(nn.Module):
         super().__init__()
         self.in_channels = in_channels
         self.num_centers = num_centers
-        centers = torch.linspace(0.0, 1.0, num_centers).view(1, 1, 1, 1, num_centers)
+        # Initialize centers uniformly across [-1.0, 1.0] matching normalized image space
+        centers = torch.linspace(-1.0, 1.0, num_centers).view(1, 1, 1, 1, num_centers)
         self.register_buffer('centers', centers)
         self.log_bandwidth = nn.Parameter(torch.zeros(1, in_channels, 1, 1, num_centers))
 
@@ -132,10 +150,7 @@ class BandPassBlock(nn.Module):
     """
     def __init__(self, channels=32, kernel_size=7, padding=3):
         super().__init__()
-        self.depthwise = nn.Sequential(
-            nn.Conv2d(channels, channels, kernel_size=kernel_size, padding=padding, groups=channels, bias=False),
-            nn.BatchNorm2d(channels),
-        )
+        self.depthwise = nn.Conv2d(channels, channels, kernel_size=kernel_size, padding=padding, groups=channels, bias=False)
         self.pointwise = nn.Conv2d(channels, channels, kernel_size=1, bias=False)
         self.bn = nn.BatchNorm2d(channels)
         self.act = nn.ReLU(inplace=True)
@@ -691,12 +706,14 @@ def download_medmnist_file(dataset_name, data_root):
     flag = dataset_name
     npz_path = os.path.join(data_root, f"{flag}.npz")
     
+    required_keys = {'train_images', 'train_labels', 'val_images', 'val_labels', 'test_images', 'test_labels'}
     if os.path.exists(npz_path) and os.path.getsize(npz_path) > 1024:
         try:
             with open(npz_path, 'rb') as f:
                 d = np.load(f)
-                if 'train_images' in d:
-                    d.close()
+                valid = required_keys.issubset(set(d.files))
+                d.close()
+                if valid:
                     return npz_path
         except Exception:
             pass
@@ -723,7 +740,7 @@ def download_medmnist_file(dataset_name, data_root):
                 if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 1024:
                     with open(tmp_path, 'rb') as f:
                         d = np.load(f)
-                        valid = 'train_images' in d
+                        valid = required_keys.issubset(set(d.files))
                         d.close()
                     if valid:
                         if os.path.exists(npz_path):
@@ -769,9 +786,11 @@ def load_medmnist_dataset(name="pneumoniamnist", batch_size=256, data_root=None)
     val_loader = DataLoader(MedMNISTDataset(val_imgs, val_labels, is_multilabel, hflip_aug=False), batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(MedMNISTDataset(test_imgs, test_labels, is_multilabel, hflip_aug=False), batch_size=batch_size, shuffle=False)
     
-    # SSL Pretraining loader
+    # SSL Pretraining loader (safe batch size and drop_last logic)
     ssl_dataset = SSLMedMNISTDataset(train_imgs, patch_size=4, mask_ratio=0.25)
-    ssl_loader = DataLoader(ssl_dataset, batch_size=batch_size, shuffle=True, pin_memory=True, drop_last=True)
+    ssl_batch_size = min(batch_size, len(ssl_dataset))
+    ssl_drop_last = len(ssl_dataset) >= ssl_batch_size
+    ssl_loader = DataLoader(ssl_dataset, batch_size=ssl_batch_size, shuffle=True, pin_memory=True, drop_last=ssl_drop_last)
 
     return {
         'train_loader': train_loader,
@@ -834,16 +853,32 @@ def compute_all_metrics(y_true, y_pred_prob, is_multiclass=False, is_multilabel=
     else:
         y_pred = np.argmax(y_pred_prob, axis=1)
         acc = float(accuracy_score(y_true, y_pred))
+        bal_acc = float(balanced_accuracy_score(y_true, y_pred))
         try:
             auc_score = float(roc_auc_score(y_true, y_pred_prob, multi_class='ovr', average='macro'))
-        except Exception:
+        except (ValueError, IndexError):
             auc_score = 0.5
         f1 = float(f1_score(y_true, y_pred, average='macro', zero_division=0))
         rec = float(recall_score(y_true, y_pred, average='macro', zero_division=0))
         prec = float(precision_score(y_true, y_pred, average='macro', zero_division=0))
+
+        # Compute Macro-Averaged One-vs-Rest Specificity
+        num_classes = y_pred_prob.shape[1]
+        cm = confusion_matrix(y_true, y_pred, labels=list(range(num_classes)))
+        total_samples = np.sum(cm)
+        specs = []
+        for i in range(num_classes):
+            fp_i = np.sum(cm[:, i]) - cm[i, i]
+            fn_i = np.sum(cm[i, :]) - cm[i, i]
+            tp_i = cm[i, i]
+            tn_i = total_samples - (tp_i + fp_i + fn_i)
+            if (tn_i + fp_i) > 0:
+                specs.append(tn_i / (tn_i + fp_i))
+        spec = float(np.mean(specs)) if len(specs) > 0 else 0.0
+
         return {
             'accuracy': acc, 'roc_auc': auc_score, 'f1': f1, 'recall': rec,
-            'precision': prec, 'specificity': 0.0, 'balanced_acc': acc
+            'precision': prec, 'specificity': spec, 'balanced_acc': bal_acc
         }
 
 
@@ -916,6 +951,7 @@ def build_benchmark_model(model_name, in_channels, num_classes):
 
 
 def train_and_eval(model_name, dataset_info, epochs=15, lr=1e-3, pretrained_state_dict=None):
+    set_seed(42)
     in_channels = dataset_info['in_channels']
     num_classes = dataset_info['num_classes']
     is_multilabel = dataset_info['is_multilabel']
@@ -996,8 +1032,10 @@ def train_and_eval(model_name, dataset_info, epochs=15, lr=1e-3, pretrained_stat
         'dataset': dataset_info['name'],
         'parameters': num_params,
         'test_accuracy': round(test_m['accuracy'] * 100, 2),
+        'test_balanced_acc': round(test_m['balanced_acc'] * 100, 2),
         'test_roc_auc': round(test_m['roc_auc'], 4),
         'test_f1': round(test_m['f1'], 4),
+        'test_precision': round(test_m['precision'] * 100, 2),
         'test_recall': round(test_m['recall'] * 100, 2),
         'test_specificity': round(test_m['specificity'] * 100, 2),
         'train_time_sec': round(train_time, 1)
@@ -1030,7 +1068,8 @@ if __name__ == "__main__":
     ]
 
     available_models = [
-        "physsl_net_ssl", "physsl_net", "convnext_femto", "vanilla_cnn", "vgg16", "resnet50v2"
+        "physsl_net_ssl", "physsl_net", "convnext_femto", "vanilla_cnn", "vgg16", "resnet50v2",
+        "no_curvature", "no_token_mixer", "no_bandpass", "vanilla_cnn_rbf"
     ]
 
     selected_datasets = all_2d if "all" in args.datasets else args.datasets
@@ -1056,7 +1095,7 @@ if __name__ == "__main__":
                           "PHYSSL_NET (TRAINED FROM SCRATCH)" if m_name == "physsl_net" else m_name.upper())
             print(f"  [+] Training & Evaluating {disp_label} on {d_name} ({args.epochs} epochs)...", end="", flush=True)
             res = train_and_eval(m_name, d_info, epochs=args.epochs, pretrained_state_dict=ssl_state_dict if "ssl" in m_name else None)
-            print(f" Done! Acc: {res['test_accuracy']}% | AUC: {res['test_roc_auc']} | Params: {res['parameters']:,}")
+            print(f" Done! Acc: {res['test_accuracy']}% | Bal-Acc: {res['test_balanced_acc']}% | AUC: {res['test_roc_auc']} | Params: {res['parameters']:,}")
             records.append(res)
 
     df = pd.DataFrame(records)

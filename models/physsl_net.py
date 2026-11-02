@@ -23,13 +23,13 @@ class IntensityRBF(nn.Module):
     Width is constrained to be strictly positive via beta_k = softplus(a_k) + eps.
     Retained for comparative ablation studies.
     """
-    def __init__(self, in_channels=1, num_centers=8, init_range=(0.0, 1.0), eps=1e-4):
+    def __init__(self, in_channels=1, num_centers=8, init_range=(-1.0, 1.0), eps=1e-4):
         super().__init__()
         self.in_channels = in_channels
         self.num_centers = num_centers
         self.eps = eps
 
-        # Initialize centers uniformly across the specified range
+        # Initialize centers uniformly across the [-1.0, 1.0] normalized intensity range
         centers_init = torch.linspace(init_range[0], init_range[1], num_centers)
         self.centers = nn.Parameter(centers_init.view(1, 1, num_centers, 1, 1))
 
@@ -67,15 +67,16 @@ class AdaptiveSplineGaussianRBF(nn.Module):
         self.K = num_centers  # matching your original num_centers argument
         self.eps = eps
 
-        # 1. Learnable Centers c_k evenly initialized in [0, 1]
-        centers = torch.linspace(0.0, 1.0, num_centers).view(1, 1, num_centers, 1, 1)
+        # 1. Learnable Centers c_k evenly initialized in [-1.0, 1.0] matching image normalization
+        centers = torch.linspace(-1.0, 1.0, num_centers).view(1, 1, num_centers, 1, 1)
         self.centers = nn.Parameter(centers.repeat(1, in_channels, 1, 1, 1))
 
         # 2. Learnable Widths beta_k (constrained positive via softplus)
         self.raw_beta = nn.Parameter(torch.ones(1, in_channels, num_centers, 1, 1) * 2.0)
 
-        # 3. Learnable Shape/Order Parameter p_k (Initialized so p_k = 2.0 -> Gaussian)
-        self.raw_p = nn.Parameter(torch.zeros(1, in_channels, num_centers, 1, 1))
+        # 3. Learnable Shape/Order Parameter p_k (Exact p = 2.0 Gaussian initialization: logit((2.0 - 1.2)/2.3) = ln(0.8 / 1.5))
+        p_init_raw = math.log(0.8 / 1.5)
+        self.raw_p = nn.Parameter(torch.full((1, in_channels, num_centers, 1, 1), p_init_raw))
 
         # 4. Spline Polynomial Modulation Coefficients (Initialized to 0 -> starts as pure Gaussian!)
         self.gamma_linear = nn.Parameter(torch.zeros(1, in_channels, num_centers, 1, 1))

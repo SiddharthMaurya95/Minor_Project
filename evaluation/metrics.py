@@ -14,6 +14,7 @@ Calculates:
 import numpy as np
 from sklearn.metrics import (
     accuracy_score,
+    balanced_accuracy_score,
     roc_auc_score,
     precision_score,
     recall_score,
@@ -133,6 +134,7 @@ def compute_metrics(y_true, y_pred_prob, threshold=0.5, is_multiclass=False):
 
         y_pred = np.argmax(y_pred_prob, axis=1)
         acc = float(accuracy_score(y_true, y_pred))
+        bal_acc = float(balanced_accuracy_score(y_true, y_pred))
 
         try:
             auc = float(roc_auc_score(y_true, y_pred_prob, multi_class='ovr', average='macro'))
@@ -146,12 +148,26 @@ def compute_metrics(y_true, y_pred_prob, threshold=0.5, is_multiclass=False):
         num_classes = y_pred_prob.shape[1]
         cm = confusion_matrix(y_true, y_pred, labels=list(range(num_classes)))
 
+        # Compute Macro-Averaged One-vs-Rest Specificity
+        total_samples = np.sum(cm)
+        specs = []
+        for i in range(num_classes):
+            fp_i = np.sum(cm[:, i]) - cm[i, i]
+            fn_i = np.sum(cm[i, :]) - cm[i, i]
+            tp_i = cm[i, i]
+            tn_i = total_samples - (tp_i + fp_i + fn_i)
+            if (tn_i + fp_i) > 0:
+                specs.append(tn_i / (tn_i + fp_i))
+        specificity = float(np.mean(specs)) if len(specs) > 0 else 0.0
+
         return {
             'accuracy': acc,
+            'balanced_acc': bal_acc,
             'roc_auc': auc,
             'precision': prec,
             'recall': rec,
             'sensitivity': rec,
+            'specificity': specificity,
             'f1': f1,
             'confusion_matrix': cm.tolist(),
         }
