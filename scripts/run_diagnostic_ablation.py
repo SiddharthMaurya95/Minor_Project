@@ -31,6 +31,7 @@ def run_diagnostic():
 
     datasets = ["breastmnist", "pathmnist"]
     models = [
+        ("PhySSL-Net (SSL Pretrained)", "physsl_net_ssl"),
         ("PhySSL-Net (Orig Intensity-RBF)", "physsl_intensity_rbf"),
         ("PhySSL-Net (ASG-RBF)", "physsl_asg_rbf"),
         ("w/o Curvature Attention", "no_curvature"),

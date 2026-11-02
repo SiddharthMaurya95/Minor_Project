@@ -1,6 +1,10 @@
 """
 PhySSL-Net: Physics- and Structure-Informed Self-Supervised Learning
-Automated Benchmark Runner for MedMNIST v2 on Kaggle (TPU v5e-8 / TPU v3-8 / GPU / CPU)
+Automated Multi-Dataset Benchmark Runner for MedMNIST v2 on Kaggle (TPU v5e-8 / GPU / CPU).
+
+DTU B.Tech Research Project (AY 2026-27, Group DTU/CSE/BTP/GP053)
+Project Guide: Dr. Ravin Ahuja
+Team Members: Manish Singh, Shivam, Siddharth Kumar Maurya, Saurav Kumar
 """
 
 import os
@@ -8,23 +12,31 @@ import sys
 import time
 import math
 import random
-import argparse
 import urllib.request
-import subprocess
+import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import roc_curve, auc, accuracy_score, f1_score, recall_score, precision_score, confusion_matrix
+from sklearn.metrics import (
+    roc_auc_score,
+    accuracy_score,
+    f1_score,
+    recall_score,
+    precision_score,
+    confusion_matrix,
+    roc_curve,
+    auc,
+)
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
-import torchvision.transforms as T
-from torchvision.transforms import functional as TF
 
-# Hardware Accelerator Detection: Google Cloud TPU (TPU v5e-8 / v3-8) via PyTorch/XLA, CUDA GPU, or CPU
+# =====================================================================
+# HARDWARE ACCELERATOR DETECTION: Google Cloud TPU v5e-8 / GPU / CPU
+# =====================================================================
 HAS_TPU = False
 xm = None
 try:
@@ -32,25 +44,24 @@ try:
     import torch_xla.core.xla_model as xm
     device = xm.xla_device()
     HAS_TPU = True
-    print(f"[*] Detected Cloud TPU: {device} (PyTorch/XLA backend active)")
-    print(f"[*] Optimized for Google Cloud TPU v5e-8 / TPU v3-8 execution!")
+    print(f"[*] Active Hardware Backend: Google Cloud TPU ({device}) via PyTorch/XLA")
 except Exception:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     gpu_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"
-    print(f"[*] Running on device: {device} ({gpu_name})")
+    print(f"[*] TPU not active. Active Hardware: {device} ({gpu_name})")
 
 try:
     import medmnist
     from medmnist import INFO
+    MEDMNIST_AVAILABLE = True
 except ImportError:
-    import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "medmnist"])
-    import medmnist
-    from medmnist import INFO
+    MEDMNIST_AVAILABLE = False
+    print("[!] MedMNIST not installed via pip. Using direct NPZ dataset downloader fallback.")
 
-# ==========================================
-# 1. MODEL ARCHITECTURES
-# ==========================================
+
+# =====================================================================
+# 1. MODEL ARCHITECTURES (100% IDENTICAL TO LOCAL REPO SPECIFICATION)
+# =====================================================================
 
 class AdaptiveSplineGaussianRBF(nn.Module):
     """
@@ -93,7 +104,9 @@ class AdaptiveSplineGaussianRBF(nn.Module):
         phi_flat = phi.view(B, C * K, H, W)
         return torch.cat([x, phi_flat], dim=1)
 
+
 class IntensityRBF(nn.Module):
+    """Original learnable Gaussian RBF intensity projection layer."""
     def __init__(self, in_channels, num_centers=8):
         super().__init__()
         self.in_channels = in_channels
@@ -110,86 +123,149 @@ class IntensityRBF(nn.Module):
         rbf = rbf.view(B, C * self.num_centers, H, W)
         return torch.cat([x, rbf], dim=1)
 
+
 class BandPassBlock(nn.Module):
-    def __init__(self, channels):
+    """
+    Dual-Path Band-Pass Residual Block:
+    Extracts high-frequency spatial gradients via 7x7 depthwise convolution and absolute modulus:
+        Y = ReLU(X + Conv1x1(|DepthwiseConv7x7(X)|))
+    """
+    def __init__(self, channels=32, kernel_size=7, padding=3):
         super().__init__()
-        self.dw_conv = nn.Conv2d(channels, channels, kernel_size=7, padding=3, groups=channels, bias=False)
-        self.proj = nn.Conv2d(channels, channels, kernel_size=1, bias=False)
+        self.depthwise = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=kernel_size, padding=padding, groups=channels, bias=False),
+            nn.BatchNorm2d(channels),
+        )
+        self.pointwise = nn.Conv2d(channels, channels, kernel_size=1, bias=False)
         self.bn = nn.BatchNorm2d(channels)
+        self.act = nn.ReLU(inplace=True)
 
     def forward(self, x):
-        high = torch.abs(self.dw_conv(x))
-        out = self.bn(self.proj(high))
-        return x + out
+        dw = self.depthwise(x)
+        high = torch.abs(dw)
+        proj = self.pointwise(high)
+        proj = self.bn(proj)
+        out = self.act(x + proj)
+        return out
+
 
 class CurvatureAttention(nn.Module):
-    def __init__(self, channels, eps=1e-2):
+    """
+    Level-Set / Curvature-Inspired Spatial Attention:
+    Derives mean curvature kappa from scalar feature field u = Conv1x1(X):
+        kappa = div(nabla u / sqrt(|nabla u|^2 + eps))
+    where eps = 1e-2 and normalized Sobel kernels (/ 8.0) are utilized.
+    Attention map A_curv = sigmoid(-kappa).
+    Residual bypass: X_out = X * A_curv + X.
+    """
+    def __init__(self, in_channels=32, eps=1e-2):
         super().__init__()
         self.eps = eps
-        self.proj = nn.Conv2d(channels, 1, kernel_size=1, bias=False)
-        kx = torch.tensor([[-1., 0., 1.], [-2., 0., 2.], [-1., 0., 1.]], dtype=torch.float32).view(1, 1, 3, 3)
-        ky = torch.tensor([[-1., -2., -1.], [0., 0., 0.], [1., 2., 1.]], dtype=torch.float32).view(1, 1, 3, 3)
-        self.register_buffer('kx', kx)
-        self.register_buffer('ky', ky)
+        self.proj = nn.Conv2d(in_channels, 1, kernel_size=1, bias=False)
+
+        kx = torch.tensor([[-1., 0., 1.],
+                           [-2., 0., 2.],
+                           [-1., 0., 1.]], dtype=torch.float32) / 8.0
+        ky = torch.tensor([[-1., -2., -1.],
+                           [ 0.,  0.,  0.],
+                           [ 1.,  2.,  1.]], dtype=torch.float32) / 8.0
+
+        self.register_buffer('kx', kx.view(1, 1, 3, 3))
+        self.register_buffer('ky', ky.view(1, 1, 3, 3))
 
     def forward(self, x):
         u = self.proj(x)
         ux = F.conv2d(u, self.kx, padding=1)
         uy = F.conv2d(u, self.ky, padding=1)
-        grad_mag = torch.sqrt(ux ** 2 + uy ** 2 + self.eps)
-        vx = ux / grad_mag
-        vy = uy / grad_mag
-        div = F.conv2d(vx, self.kx, padding=1) + F.conv2d(vy, self.ky, padding=1)
-        att = torch.sigmoid(-div)
-        return x * att + x
+        grad_norm = torch.sqrt(ux ** 2 + uy ** 2 + self.eps)
+        vx = ux / grad_norm
+        vy = uy / grad_norm
+        div_x = F.conv2d(vx, self.kx, padding=1)
+        div_y = F.conv2d(vy, self.ky, padding=1)
+        kappa = div_x + div_y
+        a_curv = torch.sigmoid(-kappa)
+        return x * a_curv + x
+
 
 class GlobalTokenMixer(nn.Module):
-    def __init__(self, channels=64, num_tokens=49):
+    """
+    Global Token Mixer operating on a 7x7 spatial token grid (49 tokens):
+    1. Spatial token mixing MLP (49 -> 49) with LayerNorm and residual connection.
+    2. Channel mixing MLP (C -> C) with LayerNorm and residual connection.
+    """
+    def __init__(self, channels=64, num_tokens=49, token_hidden_dim=49, channel_hidden_dim=128, dropout=0.1):
         super().__init__()
-        self.norm1 = nn.LayerNorm(channels)
+        self.num_tokens = num_tokens
+        self.channels = channels
+
+        self.ln1 = nn.LayerNorm(channels)
         self.token_mlp = nn.Sequential(
-            nn.Linear(num_tokens, num_tokens),
+            nn.Linear(num_tokens, token_hidden_dim),
             nn.GELU(),
-            nn.Linear(num_tokens, num_tokens)
+            nn.Dropout(dropout),
+            nn.Linear(token_hidden_dim, num_tokens),
+            nn.Dropout(dropout),
         )
-        self.norm2 = nn.LayerNorm(channels)
+
+        self.ln2 = nn.LayerNorm(channels)
         self.channel_mlp = nn.Sequential(
-            nn.Linear(channels, channels * 2),
+            nn.Linear(channels, channel_hidden_dim),
             nn.GELU(),
-            nn.Linear(channels * 2, channels)
+            nn.Dropout(dropout),
+            nn.Linear(channel_hidden_dim, channels),
+            nn.Dropout(dropout),
         )
 
     def forward(self, x):
         B, C, H, W = x.shape
         tokens = x.flatten(2).transpose(1, 2)
-        norm_t = self.norm1(tokens)
-        tokens = tokens + self.token_mlp(norm_t.transpose(1, 2)).transpose(1, 2)
-        tokens = tokens + self.channel_mlp(self.norm2(tokens))
+        norm1 = self.ln1(tokens)
+        mixed_tokens = self.token_mlp(norm1.transpose(1, 2)).transpose(1, 2)
+        tokens = tokens + mixed_tokens
+        norm2 = self.ln2(tokens)
+        mixed_channels = self.channel_mlp(norm2)
+        tokens = tokens + mixed_channels
         return tokens.transpose(1, 2).view(B, C, H, W)
 
+
 class SpatialPyramidHead(nn.Module):
-    def __init__(self, in_channels, num_classes, dropout=0.2):
+    """
+    Spatial Pyramid Classification Head:
+    Multi-scale pooling via 1x1 and 2x2 adaptive avg pooling:
+        Output = [Pool_1x1, Pool_2x2] -> 5C feature vector (320-dim).
+    """
+    def __init__(self, in_channels=64, num_classes=2, dropout=0.2):
         super().__init__()
         self.pool1 = nn.AdaptiveAvgPool2d((1, 1))
         self.pool2 = nn.AdaptiveAvgPool2d((2, 2))
         total_dim = in_channels * (1 + 4)
         self.classifier = nn.Sequential(
-            nn.Dropout(dropout),
-            nn.Linear(total_dim, num_classes)
+            nn.Dropout(p=dropout),
+            nn.Linear(total_dim, num_classes),
         )
 
+    def extract_features(self, x):
+        p1 = self.pool1(x).flatten(1)
+        p2 = self.pool2(x).flatten(1)
+        return torch.cat([p1, p2], dim=1)
+
     def forward(self, x):
-        f1 = self.pool1(x).flatten(1)
-        f2 = self.pool2(x).flatten(1)
-        f = torch.cat([f1, f2], dim=1)
-        return self.classifier(f)
+        feat = self.extract_features(x)
+        return self.classifier(feat)
+
 
 class PhySSLNet(nn.Module):
+    """
+    PhySSL-Net: Physics- and Structure-Informed Neural Network (46,318 parameters).
+    Complete modular architecture with exact stem, downsampling, and ablation pass-throughs.
+    """
     def __init__(
         self,
         in_channels=1,
         num_classes=2,
         rbf_centers=8,
+        base_channels=32,
+        token_channels=64,
         use_rbf=True,
         rbf_type="adaptive_spline",
         use_bandpass=True,
@@ -204,51 +280,63 @@ class PhySSLNet(nn.Module):
         self.use_curvature = use_curvature
         self.use_token_mixer = use_token_mixer
 
+        # 1. RBF Module
         if use_rbf:
             if rbf_type == "intensity_rbf":
                 self.rbf = IntensityRBF(in_channels=in_channels, num_centers=rbf_centers)
             else:
                 self.rbf = AdaptiveSplineGaussianRBF(in_channels=in_channels, num_centers=rbf_centers)
-            stem_in = in_channels * (1 + rbf_centers)
+            stem_in_channels = in_channels * (1 + rbf_centers)
         else:
             self.rbf = nn.Identity()
-            stem_in = in_channels
+            stem_in_channels = in_channels
 
+        # 2. Convolutional Stem (28x28 -> 14x14)
         self.stem = nn.Sequential(
-            nn.Conv2d(stem_in, 32, kernel_size=3, padding=1, bias=False),
-            nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True)
-        )
-        self.bandpass = BandPassBlock(32) if use_bandpass else nn.Identity()
-        self.curvature = CurvatureAttention(32) if use_curvature else nn.Identity()
-        self.down = nn.Sequential(
-            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(stem_in_channels, base_channels, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(base_channels),
             nn.ReLU(inplace=True),
-            nn.AdaptiveAvgPool2d((7, 7))
+            nn.MaxPool2d(kernel_size=2, stride=2),
         )
-        self.mixer = GlobalTokenMixer(channels=64, num_tokens=49) if use_token_mixer else nn.Identity()
-        self.head = SpatialPyramidHead(in_channels=64, num_classes=num_classes, dropout=dropout)
+
+        # 3. Band-Pass Block
+        self.bandpass = BandPassBlock(base_channels, kernel_size=7, padding=3) if use_bandpass else nn.Identity()
+
+        # 4. Curvature Attention
+        self.curvature = CurvatureAttention(base_channels, eps=1e-2) if use_curvature else nn.Identity()
+
+        # 5. Transition Stage (14x14 -> 7x7)
+        self.stage2 = nn.Sequential(
+            nn.Conv2d(base_channels, token_channels, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(token_channels),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+
+        # 6. Global Token Mixer at 7x7
+        self.token_mixer = GlobalTokenMixer(channels=token_channels, num_tokens=49) if use_token_mixer else nn.Identity()
+
+        # 7. Spatial Pyramid Head
+        self.head = SpatialPyramidHead(in_channels=token_channels, num_classes=num_classes, dropout=dropout)
 
     def extract_features(self, x):
         x = self.rbf(x)
         x = self.stem(x)
         x = self.bandpass(x)
         x = self.curvature(x)
-        x = self.down(x)
-        x = self.mixer(x)
-        f1 = self.head.pool1(x).flatten(1)
-        f2 = self.head.pool2(x).flatten(1)
-        return torch.cat([f1, f2], dim=1)
+        x = self.stage2(x)
+        x = self.token_mixer(x)
+        return self.head.extract_features(x)
 
     def forward(self, x):
         feat = self.extract_features(x)
         return self.head.classifier(feat)
 
+
 class PhySSLSimSiam(nn.Module):
     """
     Self-Supervised Learning Framework (PhySSL-SimSiam):
-    Masked Siamese Representation Learning with Stop-Gradient and Symmetrized Cosine Distance.
+    Masked Siamese Consistency with Stop-Gradient and Symmetrized Negative Cosine Distance.
     Pretrains the PhySSLNet backbone on unlabelled medical images using dual stochastic masked views.
     """
     def __init__(self, encoder: PhySSLNet, feature_dim=320, proj_dim=128, pred_dim=64):
@@ -274,8 +362,7 @@ class PhySSLSimSiam(nn.Module):
 
     @staticmethod
     def cosine_loss(p, z):
-        # Stop-gradient on target branch to prevent representation collapse
-        z = z.detach()
+        z = z.detach() # stop-gradient
         p = F.normalize(p, dim=1)
         z = F.normalize(z, dim=1)
         return -(p * z).sum(dim=1).mean()
@@ -293,72 +380,99 @@ class PhySSLSimSiam(nn.Module):
         loss = 0.5 * self.cosine_loss(p1, z2) + 0.5 * self.cosine_loss(p2, z1)
         return loss
 
-# BASELINES
-class VanillaCNNRBF(nn.Module):
-    """
-    Ablation Baseline: Standard Vanilla CNN prepended with Gaussian or Adaptive Spline RBF layer.
-    """
-    def __init__(self, in_channels=1, num_classes=2, rbf_centers=8, dropout=0.2, rbf_type="gaussian"):
-        super().__init__()
-        self.rbf_type = rbf_type
-        if rbf_type == "adaptive_spline":
-            self.rbf = AdaptiveSplineGaussianRBF(in_channels=in_channels, num_centers=rbf_centers)
-        else:
-            self.rbf = IntensityRBF(in_channels=in_channels, num_centers=rbf_centers)
-        cnn_in_channels = in_channels * (1 + rbf_centers)
-        self.net = nn.Sequential(
-            nn.Conv2d(cnn_in_channels, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(32, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(64, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
-            nn.AdaptiveAvgPool2d((1, 1)),
-            nn.Flatten(),
-            nn.Dropout(p=dropout),
-            nn.Linear(64, num_classes)
-        )
-    def forward(self, x):
-        return self.net(self.rbf(x))
+
+# =====================================================================
+# BASELINES (100% IDENTICAL TO models/baselines.py)
+# =====================================================================
 
 class VanillaCNN(nn.Module):
-    def __init__(self, in_channels=1, num_classes=2):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Conv2d(in_channels, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(32, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(64, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
-            nn.AdaptiveAvgPool2d((1, 1)),
-            nn.Flatten(),
-            nn.Linear(64, num_classes)
-        )
-    def forward(self, x): return self.net(x)
-
-class VGG16Small(nn.Module):
-    def __init__(self, in_channels=1, num_classes=2):
+    """Standard 4-layer Convolutional Neural Network baseline."""
+    def __init__(self, in_channels=1, num_classes=2, base_channels=32, dropout=0.2):
         super().__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(in_channels, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(),
-            nn.Conv2d(32, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(32, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
-            nn.Conv2d(64, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(64, 128, 3, padding=1), nn.BatchNorm2d(128), nn.ReLU(),
-            nn.Conv2d(128, 128, 3, padding=1), nn.BatchNorm2d(128), nn.ReLU(),
-            nn.AdaptiveAvgPool2d((1, 1))
+            nn.Conv2d(in_channels, base_channels, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(base_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(base_channels, base_channels, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(base_channels),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+
+            nn.Conv2d(base_channels, base_channels * 2, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(base_channels * 2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(base_channels * 2, base_channels * 2, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(base_channels * 2),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
         )
+        self.gap = nn.AdaptiveAvgPool2d((1, 1))
         self.classifier = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(128, 128), nn.ReLU(), nn.Dropout(0.3),
-            nn.Linear(128, num_classes)
+            nn.Dropout(p=dropout),
+            nn.Linear(base_channels * 2, num_classes),
         )
-    def forward(self, x): return self.classifier(self.features(x))
+
+    def extract_features(self, x):
+        return self.gap(self.features(x)).flatten(1)
+
+    def forward(self, x):
+        return self.classifier(self.extract_features(x))
+
+
+class VanillaCNNRBF(nn.Module):
+    """Vanilla CNN with prepended Gaussian or Adaptive Spline RBF layer."""
+    def __init__(self, in_channels=1, num_classes=2, base_channels=32, num_centers=8, dropout=0.2, rbf_type="gaussian"):
+        super().__init__()
+        if rbf_type == "adaptive_spline":
+            self.rbf = AdaptiveSplineGaussianRBF(in_channels=in_channels, num_centers=num_centers)
+        else:
+            self.rbf = IntensityRBF(in_channels=in_channels, num_centers=num_centers)
+        stem_in = in_channels * (1 + num_centers)
+        self.cnn = VanillaCNN(in_channels=stem_in, num_classes=num_classes, base_channels=base_channels, dropout=dropout)
+
+    def extract_features(self, x):
+        return self.cnn.extract_features(self.rbf(x))
+
+    def forward(self, x):
+        return self.cnn(self.rbf(x))
+
+
+class VGG16Small(nn.Module):
+    """VGG16 architecture with Batch Normalization adapted for 28x28 resolution."""
+    def __init__(self, in_channels=1, num_classes=2, dropout=0.2):
+        super().__init__()
+        cfg = [32, 32, 'M', 64, 64, 'M', 128, 128, 128, 'M', 128, 128, 128, 'M']
+        layers = []
+        c_in = in_channels
+        for v in cfg:
+            if v == 'M':
+                layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
+            else:
+                layers.extend([
+                    nn.Conv2d(c_in, v, kernel_size=3, padding=1, bias=False),
+                    nn.BatchNorm2d(v),
+                    nn.ReLU(inplace=True),
+                ])
+                c_in = v
+        self.features = nn.Sequential(*layers)
+        self.gap = nn.AdaptiveAvgPool2d((1, 1))
+        self.classifier = nn.Sequential(
+            nn.Dropout(p=dropout),
+            nn.Linear(128, 128),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=dropout),
+            nn.Linear(128, num_classes),
+        )
+
+    def extract_features(self, x):
+        return self.gap(self.features(x)).flatten(1)
+
+    def forward(self, x):
+        return self.classifier(self.extract_features(x))
+
 
 class PreActBottleneck(nn.Module):
     expansion = 4
-
     def __init__(self, in_planes, planes, stride=1):
         super().__init__()
         self.bn1 = nn.BatchNorm2d(in_planes)
@@ -367,7 +481,6 @@ class PreActBottleneck(nn.Module):
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes)
         self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1, bias=False)
-
         if stride != 1 or in_planes != planes * self.expansion:
             self.shortcut = nn.Conv2d(in_planes, planes * self.expansion, kernel_size=1, stride=stride, bias=False)
         else:
@@ -382,21 +495,17 @@ class PreActBottleneck(nn.Module):
         out += shortcut
         return out
 
+
 class ResNet50V2Small(nn.Module):
-    """
-    Standard ResNet50V2 adapted for MedMNIST (751,522 parameters):
-    Bottleneck stages [3, 4, 6, 3] with residual projection shortcuts.
-    """
+    """ResNet50V2 adapted for 28x28 medical images."""
     def __init__(self, in_channels=1, num_classes=2, dropout=0.2):
         super().__init__()
         self.in_planes = 32
         self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=3, stride=1, padding=1, bias=False)
-
         self.layer1 = self._make_layer(16, 3, stride=1)
         self.layer2 = self._make_layer(32, 4, stride=2)
         self.layer3 = self._make_layer(64, 6, stride=2)
         self.layer4 = self._make_layer(64, 3, stride=1)
-
         self.bn = nn.BatchNorm2d(64 * PreActBottleneck.expansion)
         self.gap = nn.AdaptiveAvgPool2d((1, 1))
         self.classifier = nn.Sequential(
@@ -422,8 +531,8 @@ class ResNet50V2Small(nn.Module):
         return self.gap(out).flatten(1)
 
     def forward(self, x):
-        feat = self.extract_features(x)
-        return self.classifier(feat)
+        return self.classifier(self.extract_features(x))
+
 
 class LayerNormChannelsFirst(nn.Module):
     def __init__(self, normalized_shape, eps=1e-6):
@@ -438,6 +547,7 @@ class LayerNormChannelsFirst(nn.Module):
         x = (x - u) / torch.sqrt(s + self.eps)
         x = self.weight[:, None, None] * x + self.bias[:, None, None]
         return x
+
 
 class ConvNeXtBlock(nn.Module):
     def __init__(self, dim, layer_scale_init_value=1e-6):
@@ -461,11 +571,9 @@ class ConvNeXtBlock(nn.Module):
             x = self.gamma * x
         return input + x
 
+
 class ConvNeXtFemto(nn.Module):
-    """
-    ConvNeXt-Femto (CVPR 2022 modern pure-CNN baseline, ~109k parameters):
-    Adapted for 28x28 medical images with 3 stages [16, 32, 64] and depths [2, 2, 2].
-    """
+    """ConvNeXt-Femto baseline (~109k parameters)."""
     def __init__(self, in_channels=1, num_classes=2, depths=[2, 2, 2], dims=[16, 32, 64], dropout=0.2):
         super().__init__()
         self.downsample_layers = nn.ModuleList()
@@ -501,20 +609,15 @@ class ConvNeXtFemto(nn.Module):
         return self.gap(x).flatten(1)
 
     def forward(self, x):
-        feat = self.extract_features(x)
-        return self.classifier(feat)
+        return self.classifier(self.extract_features(x))
 
 
-# ==========================================
-# 2. DATA LOADERS & DATASET WRAPPER
-# ==========================================
-
+# =====================================================================
+# 2. DATASETS & SSL MASKED TRANSFORMS (100% IDENTICAL TO data/dataset.py)
+# =====================================================================
 
 class MaskedPairTransform:
-    """
-    Generates two stochastic masked views of the same input tensor for SimSiam SSL pretraining.
-    Divides the 28x28 image into 4x4 patches and randomly zeroes out 25% of patches in each view.
-    """
+    """Generates two stochastic masked views of the same image for SimSiam SSL pretraining."""
     def __init__(self, img_size=28, patch_size=4, mask_ratio=0.25):
         self.img_size = img_size
         self.patch_size = patch_size
@@ -527,30 +630,18 @@ class MaskedPairTransform:
         masked_x = x.clone()
         mask_indices = random.sample(range(self.total_patches), self.num_masked)
         for idx in mask_indices:
-            row = idx // self.num_patches_1d
-            col = idx % self.num_patches_1d
-            r_start = row * self.patch_size
-            r_end = r_start + self.patch_size
-            c_start = col * self.patch_size
-            c_end = c_start + self.patch_size
-            masked_x[:, r_start:r_end, c_start:c_end] = 0.0
+            r = (idx // self.num_patches_1d) * self.patch_size
+            c = (idx % self.num_patches_1d) * self.patch_size
+            masked_x[:, r:r+self.patch_size, c:c+self.patch_size] = 0.0
         return masked_x
 
     def __call__(self, x):
-        if random.random() > 0.5:
-            x_flip = torch.flip(x, dims=[-1])
-        else:
-            x_flip = x
-        view1 = self._apply_mask(x_flip)
-        view2 = self._apply_mask(x_flip)
-        return view1, view2
+        x_flip = torch.flip(x, dims=[-1]) if random.random() > 0.5 else x
+        return self._apply_mask(x_flip), self._apply_mask(x_flip)
+
 
 class SSLMedMNISTDataset(Dataset):
-    """
-    Unlabelled Dataset for Self-Supervised Pretraining.
-    Returns dual stochastic masked views (v1, v2) for each sample.
-    Completely detaches labels to guarantee zero data leakage.
-    """
+    """Unlabelled SSL dataset returning dual stochastic masked views."""
     def __init__(self, images, patch_size=4, mask_ratio=0.25):
         self.images = images
         self.mask_tf = MaskedPairTransform(img_size=28, patch_size=patch_size, mask_ratio=mask_ratio)
@@ -562,16 +653,18 @@ class SSLMedMNISTDataset(Dataset):
         img = self.images[idx]
         if img.ndim == 2:
             img = img[:, :, None]
-        img = torch.from_numpy(img).permute(2, 0, 1).float() / 255.0
-        x = (img - 0.5) / 0.5
-        v1, v2 = self.mask_tf(x)
-        return v1, v2
+        x = torch.from_numpy(img).permute(2, 0, 1).float() / 255.0
+        x = (x - 0.5) / 0.5
+        return self.mask_tf(x)
+
 
 class MedMNISTDataset(Dataset):
-    def __init__(self, images, labels, is_multilabel=False):
+    """In-memory Supervised Dataset for MedMNIST."""
+    def __init__(self, images, labels, is_multilabel=False, hflip_aug=False):
         self.images = images
         self.labels = labels
         self.is_multilabel = is_multilabel
+        self.hflip_aug = hflip_aug
 
     def __len__(self):
         return len(self.images)
@@ -582,6 +675,8 @@ class MedMNISTDataset(Dataset):
             img = img[:, :, None]
         img = torch.from_numpy(img).permute(2, 0, 1).float() / 255.0
         img = (img - 0.5) / 0.5
+        if self.hflip_aug and random.random() > 0.5:
+            img = torch.flip(img, dims=[-1])
         label = self.labels[idx]
         if self.is_multilabel:
             label = torch.tensor(label, dtype=torch.float32)
@@ -589,17 +684,13 @@ class MedMNISTDataset(Dataset):
             label = torch.tensor(label.item(), dtype=torch.long)
         return img, label
 
+
 def download_medmnist_file(dataset_name, data_root):
-    """
-    Robust dataset downloader with fallback mirrors and user-agent bypass.
-    Prevents HTTP 403 Forbidden and directory-not-found errors on Kaggle.
-    """
     os.makedirs(data_root, exist_ok=True)
-    info = INFO[dataset_name]
+    info = INFO[dataset_name] if MEDMNIST_AVAILABLE else {'url': None}
     flag = dataset_name
     npz_path = os.path.join(data_root, f"{flag}.npz")
     
-    # Check if already present and valid
     if os.path.exists(npz_path) and os.path.getsize(npz_path) > 1024:
         try:
             with open(npz_path, 'rb') as f:
@@ -609,24 +700,19 @@ def download_medmnist_file(dataset_name, data_root):
                     return npz_path
         except Exception:
             pass
-            
+
     candidate_urls = [
-        info.get('url'),
+        info.get('url') if MEDMNIST_AVAILABLE else None,
         f"https://zenodo.org/records/10519652/files/{flag}.npz?download=1",
         f"https://zenodo.org/records/6496656/files/{flag}.npz?download=1",
     ]
     candidate_urls = [u for u in candidate_urls if u]
-    
-    headers_list = [
-        {'User-Agent': 'curl/8.4.0'},
-        {'User-Agent': 'MedMNIST-Downloader/1.0'},
-        {}
-    ]
-    
+    headers_list = [{'User-Agent': 'curl/8.4.0'}, {'User-Agent': 'MedMNIST-Downloader/1.0'}, {}]
+
     print(f"[*] Downloading {flag}.npz to {data_root}...")
     tmp_path = npz_path + ".tmp"
     success = False
-    
+
     for url in candidate_urls:
         for headers in headers_list:
             try:
@@ -649,65 +735,40 @@ def download_medmnist_file(dataset_name, data_root):
                 if os.path.exists(tmp_path):
                     try: os.remove(tmp_path)
                     except Exception: pass
-            if success:
-                break
-        if success:
-            break
-
-    # Fallback to system curl if available on Linux/Kaggle
-    if not success and os.name != 'nt':
-        for url in candidate_urls:
-            try:
-                subprocess.run(["curl", "-L", "-s", "-o", tmp_path, url], timeout=60, check=True)
-                if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 1024:
-                    with open(tmp_path, 'rb') as f:
-                        d = np.load(f)
-                        valid = 'train_images' in d
-                        d.close()
-                    if valid:
-                        if os.path.exists(npz_path):
-                            os.remove(npz_path)
-                        os.replace(tmp_path, npz_path)
-                        success = True
-                        break
-            except Exception:
-                if os.path.exists(tmp_path):
-                    try: os.remove(tmp_path)
-                    except Exception: pass
-            if success:
-                break
+            if success: break
+        if success: break
 
     if not success:
-        raise RuntimeError(
-            f"\n"
-            f"====================================================================================\n"
-            f"[ERROR] Could not download dataset '{dataset_name}.npz' to '{data_root}'.\n"
-            f"CRITICAL KAGGLE CONFIGURATION:\n"
-            f"1. On Kaggle, open the right-hand sidebar under 'Settings' / 'Notebook options'.\n"
-            f"2. Ensure the 'Internet' toggle is switched to 'ON' (requires verified Kaggle account).\n"
-            f"3. Alternatively, upload '{dataset_name}.npz' directly to '{data_root}/'.\n"
-            f"===================================================================================="
-        )
+        raise RuntimeError(f"[ERROR] Could not download {dataset_name}.npz. Please ensure internet access is enabled.")
     return npz_path
 
-def load_medmnist_dataset(name="pneumoniamnist", batch_size=128, data_root="/kaggle/working/data"):
+
+def load_medmnist_dataset(name="pneumoniamnist", batch_size=256, data_root="/kaggle/working/data"):
     data_root = os.path.abspath(data_root)
     os.makedirs(data_root, exist_ok=True)
-    download_medmnist_file(name, data_root)
+    npz_path = download_medmnist_file(name, data_root)
 
-    info = INFO[name]
-    DataClass = getattr(medmnist, info['python_class'])
-    is_multilabel = (info['task'] == 'multi-label, binary-class')
+    data = np.load(npz_path)
+    train_imgs, train_labels = data['train_images'], data['train_labels']
+    val_imgs, val_labels = data['val_images'], data['val_labels']
+    test_imgs, test_labels = data['test_images'], data['test_labels']
 
-    train_raw = DataClass(split='train', root=data_root, download=False)
-    val_raw = DataClass(split='val', root=data_root, download=False)
-    test_raw = DataClass(split='test', root=data_root, download=False)
+    if MEDMNIST_AVAILABLE:
+        info = INFO[name]
+        in_channels = info['n_channels']
+        num_classes = len(info['label'])
+        is_multilabel = (info['task'] == 'multi-label, binary-class')
+    else:
+        in_channels = 1 if train_imgs.ndim == 3 or train_imgs.shape[-1] == 1 else 3
+        num_classes = len(np.unique(train_labels))
+        is_multilabel = False
 
-    train_loader = DataLoader(MedMNISTDataset(train_raw.imgs, train_raw.labels, is_multilabel), batch_size=batch_size, shuffle=True, pin_memory=True)
-    val_loader = DataLoader(MedMNISTDataset(val_raw.imgs, val_raw.labels, is_multilabel), batch_size=batch_size, shuffle=False)
-    test_loader = DataLoader(MedMNISTDataset(test_raw.imgs, test_raw.labels, is_multilabel), batch_size=batch_size, shuffle=False)
-
-    ssl_dataset = SSLMedMNISTDataset(train_raw.imgs, patch_size=4, mask_ratio=0.25)
+    train_loader = DataLoader(MedMNISTDataset(train_imgs, train_labels, is_multilabel, hflip_aug=True), batch_size=batch_size, shuffle=True, pin_memory=True)
+    val_loader = DataLoader(MedMNISTDataset(val_imgs, val_labels, is_multilabel, hflip_aug=False), batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(MedMNISTDataset(test_imgs, test_labels, is_multilabel, hflip_aug=False), batch_size=batch_size, shuffle=False)
+    
+    # SSL Pretraining loader
+    ssl_dataset = SSLMedMNISTDataset(train_imgs, patch_size=4, mask_ratio=0.25)
     ssl_loader = DataLoader(ssl_dataset, batch_size=batch_size, shuffle=True, pin_memory=True, drop_last=True)
 
     return {
@@ -715,26 +776,83 @@ def load_medmnist_dataset(name="pneumoniamnist", batch_size=128, data_root="/kag
         'val_loader': val_loader,
         'test_loader': test_loader,
         'ssl_loader': ssl_loader,
-        'train_raw_imgs': train_raw.imgs,
-        'in_channels': info['n_channels'],
-        'num_classes': len(info['label']) if is_multilabel else len(info['label']),
+        'train_raw_imgs': train_imgs,
+        'in_channels': in_channels,
+        'num_classes': num_classes,
         'is_multilabel': is_multilabel,
-        'task': info['task'],
         'name': name,
-        'total_train': len(train_raw),
-        'total_test': len(test_raw)
+        'total_train': len(train_imgs),
+        'total_test': len(test_imgs)
     }
 
-# ==========================================
-# 3. TRAINING & EVALUATION FUNCTIONS
-# ==========================================
 
+# =====================================================================
+# 3. METRICS EVALUATOR (100% IDENTICAL TO evaluation/metrics.py)
+# =====================================================================
+
+def compute_all_metrics(y_true, y_pred_prob, is_multiclass=False, is_multilabel=False):
+    y_true = np.asarray(y_true).squeeze()
+    y_pred_prob = np.asarray(y_pred_prob)
+
+    if is_multilabel:
+        try:
+            auc_score = roc_auc_score(y_true, y_pred_prob, average='macro')
+        except Exception:
+            auc_score = 0.5
+        preds = (y_pred_prob >= 0.5).astype(int)
+        acc = accuracy_score(y_true, preds)
+        f1 = f1_score(y_true, preds, average='macro', zero_division=0)
+        rec = recall_score(y_true, preds, average='macro', zero_division=0)
+        prec = precision_score(y_true, preds, average='macro', zero_division=0)
+        return {
+            'accuracy': float(acc), 'roc_auc': float(auc_score), 'f1': float(f1),
+            'recall': float(rec), 'precision': float(prec), 'specificity': 0.0,
+            'balanced_acc': float(acc)
+        }
+
+    if not is_multiclass:
+        scores = y_pred_prob[:, 1] if y_pred_prob.ndim == 2 else y_pred_prob
+        y_pred = (scores >= 0.5).astype(int)
+        acc = float(accuracy_score(y_true, y_pred))
+        try:
+            fpr, tpr, _ = roc_curve(y_true, scores)
+            auc_score = float(auc(fpr, tpr))
+        except Exception:
+            auc_score = 0.5
+        f1 = float(f1_score(y_true, y_pred, zero_division=0))
+        rec = float(recall_score(y_true, y_pred, zero_division=0))
+        prec = float(precision_score(y_true, y_pred, zero_division=0))
+        tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
+        spec = float(tn / (tn + fp)) if (tn + fp) > 0 else 0.0
+        bal_acc = float(0.5 * (rec + spec))
+        return {
+            'accuracy': acc, 'roc_auc': auc_score, 'f1': f1, 'recall': rec,
+            'precision': prec, 'specificity': spec, 'balanced_acc': bal_acc
+        }
+    else:
+        y_pred = np.argmax(y_pred_prob, axis=1)
+        acc = float(accuracy_score(y_true, y_pred))
+        try:
+            auc_score = float(roc_auc_score(y_true, y_pred_prob, multi_class='ovr', average='macro'))
+        except Exception:
+            auc_score = 0.5
+        f1 = float(f1_score(y_true, y_pred, average='macro', zero_division=0))
+        rec = float(recall_score(y_true, y_pred, average='macro', zero_division=0))
+        prec = float(precision_score(y_true, y_pred, average='macro', zero_division=0))
+        return {
+            'accuracy': acc, 'roc_auc': auc_score, 'f1': f1, 'recall': rec,
+            'precision': prec, 'specificity': 0.0, 'balanced_acc': acc
+        }
+
+
+# =====================================================================
+# 4. 2-PHASE TRAINING PIPELINE (PRETRAIN SSL + SUPERVISED FINE-TUNING)
+# =====================================================================
 
 def pretrain_ssl_encoder(dataset_info, ssl_epochs=8, lr=1e-3):
     """
-    Phase 1: Self-Supervised Pretraining using PhySSL-SimSiam.
-    Trains encoder backbone on unlabelled images using dual stochastic masked views.
-    No labels are provided or used during this phase.
+    Phase 1: Self-Supervised Masked Siamese Pretraining.
+    Trains PhySSLNet backbone on unlabelled images using dual masked views.
     """
     in_channels = dataset_info['in_channels']
     ssl_loader = dataset_info['ssl_loader']
@@ -745,68 +863,74 @@ def pretrain_ssl_encoder(dataset_info, ssl_epochs=8, lr=1e-3):
     optimizer = torch.optim.AdamW(ssl_model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=ssl_epochs, eta_min=1e-6)
     
-    print(f"\n   [Phase 1: SSL Pretraining] Pretraining PhySSLSimSiam for {ssl_epochs} epochs (Unlabelled Data)...")
+    print(f"\n   >>> [Phase 1: SSL Pretraining] Pretraining PhySSLSimSiam ({ssl_epochs} epochs) on unlabelled data...")
     t0 = time.time()
     for ep in range(1, ssl_epochs + 1):
         ssl_model.train()
-        total_loss, n_batches = 0.0, 0
+        total_loss, n_b = 0.0, 0
         for v1, v2 in ssl_loader:
             v1, v2 = v1.to(device), v2.to(device)
             optimizer.zero_grad()
             loss = ssl_model(v1, v2)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(ssl_model.parameters(), max_norm=5.0)
-            if HAS_TPU:
-                xm.optimizer_step(optimizer)
-            else:
-                optimizer.step()
+            if HAS_TPU: xm.optimizer_step(optimizer)
+            else: optimizer.step()
             total_loss += loss.item()
-            n_batches += 1
+            n_b += 1
         scheduler.step()
-        if HAS_TPU:
-            xm.mark_step()
+        if HAS_TPU: xm.mark_step()
         if ep % max(1, ssl_epochs // 2) == 0 or ep == ssl_epochs:
-            print(f"       SSL Epoch [{ep:02d}/{ssl_epochs:02d}] - Negative Cosine Loss: {total_loss / max(1, n_batches):.4f}")
-            
-    ssl_time = time.time() - t0
-    print(f"   [Phase 1: SSL Pretraining] Completed in {ssl_time:.1f}s.")
-    return encoder.state_dict(), ssl_time
+            print(f"       SSL Epoch [{ep:02d}/{ssl_epochs:02d}] - Negative Cosine Loss: {total_loss / max(1, n_b):.4f}")
+    ssl_dur = time.time() - t0
+    print(f"   >>> [Phase 1: SSL Pretraining] Finished in {ssl_dur:.1f}s.")
+    return encoder.state_dict(), ssl_dur
+
+
+def build_benchmark_model(model_name, in_channels, num_classes):
+    m = model_name.lower()
+    if m in ("physsl_net_ssl", "physsl_ssl"):
+        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="adaptive_spline")
+    elif m in ("physsl_net", "physsl_asg_rbf"):
+        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="adaptive_spline")
+    elif m == "physsl_intensity_rbf":
+        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf")
+    elif m == "no_curvature":
+        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf", use_curvature=False)
+    elif m == "no_token_mixer":
+        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf", use_token_mixer=False)
+    elif m == "no_bandpass":
+        return PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf", use_bandpass=False)
+    elif m == "vanilla_cnn_asg_rbf":
+        return VanillaCNNRBF(in_channels=in_channels, num_classes=num_classes, rbf_type="adaptive_spline")
+    elif m == "vanilla_cnn_rbf":
+        return VanillaCNNRBF(in_channels=in_channels, num_classes=num_classes, rbf_type="gaussian")
+    elif m == "vanilla_cnn":
+        return VanillaCNN(in_channels=in_channels, num_classes=num_classes)
+    elif m == "vgg16":
+        return VGG16Small(in_channels=in_channels, num_classes=num_classes)
+    elif m == "resnet50v2":
+        return ResNet50V2Small(in_channels=in_channels, num_classes=num_classes)
+    elif m == "convnext_femto":
+        return ConvNeXtFemto(in_channels=in_channels, num_classes=num_classes)
+    else:
+        return PhySSLNet(in_channels=in_channels, num_classes=num_classes)
+
 
 def train_and_eval(model_name, dataset_info, epochs=15, lr=1e-3, pretrained_state_dict=None):
     in_channels = dataset_info['in_channels']
     num_classes = dataset_info['num_classes']
     is_multilabel = dataset_info['is_multilabel']
 
-    if model_name in ("physsl_net_ssl", "physsl_ssl"):
-        model = PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="adaptive_spline").to(device)
-        if pretrained_state_dict is not None:
-            model_dict = model.state_dict()
-            filtered = {k: v for k, v in pretrained_state_dict.items() if k in model_dict and v.shape == model_dict[k].shape}
-            model_dict.update(filtered)
-            model.load_state_dict(model_dict)
-            print(f" (Loaded {len(filtered)}/{len(model_dict)} SSL Pretrained Tensors)", end="", flush=True)
-    elif model_name in ("physsl_net", "physsl_asg_rbf"):
-        model = PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="adaptive_spline").to(device)
-    elif model_name == "physsl_intensity_rbf":
-        model = PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf").to(device)
-    elif model_name == "no_curvature":
-        model = PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf", use_curvature=False).to(device)
-    elif model_name == "no_token_mixer":
-        model = PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf", use_token_mixer=False).to(device)
-    elif model_name == "no_bandpass":
-        model = PhySSLNet(in_channels=in_channels, num_classes=num_classes, rbf_type="intensity_rbf", use_bandpass=False).to(device)
-    elif model_name == "vanilla_cnn_rbf":
-        model = VanillaCNNRBF(in_channels=in_channels, num_classes=num_classes, rbf_type="gaussian").to(device)
-    elif model_name == "vanilla_cnn_asg_rbf":
-        model = VanillaCNNRBF(in_channels=in_channels, num_classes=num_classes, rbf_type="adaptive_spline").to(device)
-    elif model_name == "vanilla_cnn":
-        model = VanillaCNN(in_channels=in_channels, num_classes=num_classes).to(device)
-    elif model_name == "vgg16":
-        model = VGG16Small(in_channels=in_channels, num_classes=num_classes).to(device)
-    elif model_name == "resnet50v2":
-        model = ResNet50V2Small(in_channels=in_channels, num_classes=num_classes).to(device)
-    elif model_name == "convnext_femto":
-        model = ConvNeXtFemto(in_channels=in_channels, num_classes=num_classes).to(device)
+    model = build_benchmark_model(model_name, in_channels, num_classes).to(device)
+
+    # Load SSL weights if physsl_net_ssl
+    if "ssl" in model_name.lower() and pretrained_state_dict is not None:
+        m_dict = model.state_dict()
+        filtered = {k: v for k, v in pretrained_state_dict.items() if k in m_dict and v.shape == m_dict[k].shape}
+        m_dict.update(filtered)
+        model.load_state_dict(m_dict)
+        print(f" (Transferred {len(filtered)}/{len(m_dict)} SSL Pretrained Tensors)", end="", flush=True)
 
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
@@ -814,10 +938,10 @@ def train_and_eval(model_name, dataset_info, epochs=15, lr=1e-3, pretrained_stat
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
-    best_val_score = 0.0
+    best_score = 0.0
     best_weights = None
-
     t0 = time.time()
+
     for ep in range(1, epochs + 1):
         model.train()
         for x, y in dataset_info['train_loader']:
@@ -826,43 +950,34 @@ def train_and_eval(model_name, dataset_info, epochs=15, lr=1e-3, pretrained_stat
             out = model(x)
             loss = criterion(out, y)
             loss.backward()
-            if HAS_TPU:
-                xm.optimizer_step(optimizer)
-            else:
-                optimizer.step()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
+            if HAS_TPU: xm.optimizer_step(optimizer)
+            else: optimizer.step()
         scheduler.step()
-        if HAS_TPU:
-            xm.mark_step()
+        if HAS_TPU: xm.mark_step()
 
-        # Val check
+        # Validation Check
         model.eval()
         val_preds, val_targets = [], []
         with torch.no_grad():
             for x, y in dataset_info['val_loader']:
                 x = x.to(device)
                 logits = model(x)
-                if is_multilabel:
-                    probs = torch.sigmoid(logits).cpu().numpy()
-                else:
-                    probs = F.softmax(logits, dim=1).cpu().numpy()
+                probs = torch.sigmoid(logits).cpu().numpy() if is_multilabel else F.softmax(logits, dim=1).cpu().numpy()
                 val_preds.append(probs)
                 val_targets.append(y.numpy())
-
         val_preds = np.concatenate(val_preds, axis=0)
         val_targets = np.concatenate(val_targets, axis=0)
 
-        if is_multilabel:
-            val_score = roc_auc_score(val_targets, val_preds, average='macro')
-        else:
-            val_score = accuracy_score(val_targets, np.argmax(val_preds, axis=1))
-
-        if val_score > best_val_score or best_weights is None:
-            best_val_score = val_score
+        val_m = compute_all_metrics(val_targets, val_preds, is_multiclass=(num_classes > 2), is_multilabel=is_multilabel)
+        score = val_m['balanced_acc']
+        if score > best_score or best_weights is None:
+            best_score = score
             best_weights = {k: v.cpu().clone() for k, v in model.state_dict().items()}
 
     train_time = time.time() - t0
 
-    # Final Evaluation on Held-Out Test Set
+    # Test Evaluation
     model.load_state_dict(best_weights)
     model.eval()
     test_preds, test_targets = [], []
@@ -870,51 +985,30 @@ def train_and_eval(model_name, dataset_info, epochs=15, lr=1e-3, pretrained_stat
         for x, y in dataset_info['test_loader']:
             x = x.to(device)
             logits = model(x)
-            if is_multilabel:
-                probs = torch.sigmoid(logits).cpu().numpy()
-            else:
-                probs = F.softmax(logits, dim=1).cpu().numpy()
+            probs = torch.sigmoid(logits).cpu().numpy() if is_multilabel else F.softmax(logits, dim=1).cpu().numpy()
             test_preds.append(probs)
             test_targets.append(y.numpy())
-
     test_preds = np.concatenate(test_preds, axis=0)
     test_targets = np.concatenate(test_targets, axis=0)
 
-    if is_multilabel:
-        try:
-            from sklearn.metrics import roc_auc_score
-            test_auc = roc_auc_score(test_targets, test_preds, average='macro')
-        except:
-            test_auc = 0.5
-        test_acc = accuracy_score(test_targets, (test_preds >= 0.5).astype(int))
-        test_f1 = f1_score(test_targets, (test_preds >= 0.5).astype(int), average='macro')
-    else:
-        pred_labels = np.argmax(test_preds, axis=1)
-        test_acc = accuracy_score(test_targets, pred_labels)
-        test_f1 = f1_score(test_targets, pred_labels, average='macro')
-        if num_classes == 2:
-            fpr, tpr, _ = roc_curve(test_targets, test_preds[:, 1])
-            test_auc = auc(fpr, tpr)
-        else:
-            try:
-                from sklearn.metrics import roc_auc_score
-                test_auc = roc_auc_score(test_targets, test_preds, multi_class='ovr')
-            except:
-                test_auc = 0.5
+    test_m = compute_all_metrics(test_targets, test_preds, is_multiclass=(num_classes > 2), is_multilabel=is_multilabel)
 
     return {
         'model': model_name,
         'dataset': dataset_info['name'],
-        'params': num_params,
-        'test_accuracy': round(test_acc * 100, 2),
-        'test_auc': round(test_auc, 4),
-        'test_f1': round(test_f1, 4),
+        'parameters': num_params,
+        'test_accuracy': round(test_m['accuracy'] * 100, 2),
+        'test_roc_auc': round(test_m['roc_auc'], 4),
+        'test_f1': round(test_m['f1'], 4),
+        'test_recall': round(test_m['recall'] * 100, 2),
+        'test_specificity': round(test_m['specificity'] * 100, 2),
         'train_time_sec': round(train_time, 1)
     }
 
-# ==========================================
-# 4. BENCHMARK EXECUTION
-# ==========================================
+
+# =====================================================================
+# 5. BENCHMARK EXECUTION
+# =====================================================================
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -922,7 +1016,7 @@ if __name__ == "__main__":
                         help="List of 2D MedMNIST datasets to run (or 'all')")
     parser.add_argument("--epochs", type=int, default=15)
     parser.add_argument("--ssl_epochs", type=int, default=8, help="Number of Self-Supervised pretraining epochs")
-    parser.add_argument("--batch_size", type=int, default=256, help="Batch size (256 or 512 recommended for TPU v5e-8)")
+    parser.add_argument("--batch_size", type=int, default=256, help="Batch size (256 or 512 for TPU/GPU)")
     parser.add_argument("--output_dir", default="/kaggle/working")
     args = parser.parse_args()
 
@@ -940,6 +1034,7 @@ if __name__ == "__main__":
     records = []
     print(f"\n=================================================================")
     print(f" Starting Benchmark: {len(selected_datasets)} Datasets x {len(models)} Models")
+    print(f" Models: {models}")
     print(f"=================================================================\n")
 
     for d_name in selected_datasets:
@@ -949,14 +1044,14 @@ if __name__ == "__main__":
         # Phase 1: Self-Supervised Pretraining for PhySSL-Net
         ssl_state_dict = None
         if any("ssl" in m for m in models):
-            ssl_state_dict, ssl_sec = pretrain_ssl_encoder(d_info, ssl_epochs=max(5, args.epochs // 2), lr=1e-3)
+            ssl_state_dict, ssl_sec = pretrain_ssl_encoder(d_info, ssl_epochs=args.ssl_epochs, lr=1e-3)
 
         for m_name in models:
-            display_str = "PHYSSL_NET (SSL PRETRAINED + FINE-TUNED)" if m_name == "physsl_net_ssl" else (
+            disp_label = "PHYSSL_NET (SSL PRETRAINED + FINE-TUNED)" if m_name == "physsl_net_ssl" else (
                           "PHYSSL_NET (TRAINED FROM SCRATCH)" if m_name == "physsl_net" else m_name.upper())
-            print(f"  [+] Training & Evaluating {display_str} on {d_name} ({args.epochs} epochs)...", end="", flush=True)
+            print(f"  [+] Training & Evaluating {disp_label} on {d_name} ({args.epochs} epochs)...", end="", flush=True)
             res = train_and_eval(m_name, d_info, epochs=args.epochs, pretrained_state_dict=ssl_state_dict if "ssl" in m_name else None)
-            print(f" Done! Acc: {res['test_accuracy']}% | AUC: {res['test_auc']} | Params: {res['params']:,}")
+            print(f" Done! Acc: {res['test_accuracy']}% | AUC: {res['test_roc_auc']} | Params: {res['parameters']:,}")
             records.append(res)
 
     df = pd.DataFrame(records)
@@ -966,9 +1061,9 @@ if __name__ == "__main__":
     print(df.to_string())
 
     # Plot Comparison
-    plt.figure(figsize=(10, 6), dpi=300)
+    plt.figure(figsize=(12, 6), dpi=300)
     sns.barplot(data=df, x="dataset", y="test_accuracy", hue="model", palette="Set2")
-    plt.title("MedMNIST Multi-Dataset Benchmark: PhySSL-Net vs Baselines", fontsize=14, fontweight="bold")
+    plt.title("MedMNIST Multi-Dataset Benchmark: PhySSL-Net (SSL vs Scratch) vs Baselines", fontsize=14, fontweight="bold")
     plt.ylabel("Test Accuracy (%)", fontsize=12)
     plt.xlabel("Dataset", fontsize=12)
     plt.legend(title="Model", bbox_to_anchor=(1.02, 1), loc="upper left")
