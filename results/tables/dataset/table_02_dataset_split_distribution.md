@@ -1,0 +1,8 @@
+### TABLE 2: Dataset Split Distribution
+
+| Split | Normal (Class 0) | Pneumonia (Class 1) | Total | Normal (%) | Pneumonia (%) |
+| --- | --- | --- | --- | --- | --- |
+| Train | 1214 | 3494 | 4708 | 25.8% | 74.2% |
+| Validation | 135 | 389 | 524 | 25.8% | 74.2% |
+| Test | 234 | 390 | 624 | 37.5% | 62.5% |
+| Overall Total | 1583 | 4273 | 5856 | 27.0% | 73.0% |

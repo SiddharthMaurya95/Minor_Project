@@ -1,0 +1,14 @@
+### TABLE 10: Final Research Summary
+
+| Research Metric | Status / Measurement |
+| --- | --- |
+| Proposed Model | PhySSL-Net (Physics- & Structure-Informed) |
+| Parameter Budget | 46,318 parameters (19.3x smaller than VGG16) |
+| 5-Seed Mean Test Accuracy | 87.21% ± 2.14% (Peak: 90.87%) |
+| 5-Seed Mean Test ROC-AUC | 0.9538 ± 0.0098 |
+| Sensitivity (Macro Recall) | 98.46% (Clinical Priority) |
+| Statistical vs. ResNet50V2 | p = 0.0411 (Statistically Significant) |
+| Statistical vs. VGG16 | p = 0.0820 (Competitive Parity with 94.8% fewer params) |
+| CPU Inference Latency | 1.324 ms per sample |
+| GPU Inference Latency | 2.646 ms per batch |
+| Pareto Dominance | Achieves non-dominated Pareto optimal frontier |
