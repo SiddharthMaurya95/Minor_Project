@@ -1,5 +1,5 @@
 # PhySSL-Net Experimental Environment & Data Audit Report
-**Date Generated:** 2026-11-03 11:19:09  
+**Date Generated:** 2026-11-03 11:51:16  
 **Project:** DTU B.Tech Research Project (`DTU/CSE/BTP/GP053`)  
 **Guide:** Dr. Ravin Ahuja  
 
@@ -16,7 +16,7 @@
 - **Available 2D Medical Datasets:** 3 (breastmnist.npz, pathmnist.npz, pneumoniamnist.npz)
 - **Trained Model Checkpoints:** 36 binary weights (`.pth`)
 - **Epoch-wise Training Logs:** 72 JSON telemetry logs
-- **Evaluation Records:** 78 structured test evaluations
+- **Evaluation Records:** 82 structured test evaluations
 - **Models Benchmarked (9):** convnext_femto, no_bandpass, no_curvature, no_rbf, no_token_mixer, physsl_net, resnet50v2, vanilla_cnn, vgg16
 - **Evaluation Seeds Tested (5):** 42, 123, 456, 789, 999
 

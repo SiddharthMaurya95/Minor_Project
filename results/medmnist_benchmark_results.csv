@@ -1,3 +1,5 @@
-model,dataset,parameters,test_accuracy,test_balanced_acc,test_roc_auc,test_f1,test_precision,test_recall,test_specificity,train_time_sec
-physsl_net_ssl,breastmnist,46318,71.79,54.39,0.651,0.8268,75.0,92.11,16.67,0.3
-vanilla_cnn,breastmnist,65314,26.92,50.0,0.6404,0.0,0.0,0.0,100.0,0.1
+model,model_name,dataset,seed,parameters,num_parameters,accuracy,test_accuracy,balanced_acc,test_balanced_acc,roc_auc,test_roc_auc,f1,test_f1,precision,test_precision,recall,test_recall,specificity,test_specificity,train_time_sec,tn,fp,fn,tp
+physsl_net,physsl_net,breastmnist,42,46318,46318,0.7372,73.72,0.557,55.7,0.675,0.675,0.8405,0.8405,0.7552,75.52,0.9474,94.74,0.1667,16.67,0.2,7,35,6,108
+vanilla_cnn,vanilla_cnn,breastmnist,42,65314,65314,0.2692,26.92,0.5,50.0,0.6404,0.6404,0.0,0.0,0.0,0.0,0.0,0.0,1.0,100.0,0.1,42,0,114,0
+physsl_net,physsl_net,breastmnist,123,46318,46318,0.7372,73.72,0.6172,61.72,0.6995,0.6995,0.8299,0.8299,0.7874,78.74,0.8772,87.72,0.3571,35.71,0.2,15,27,14,100
+vanilla_cnn,vanilla_cnn,breastmnist,123,65314,65314,0.2692,26.92,0.5,50.0,0.6546,0.6546,0.0,0.0,0.0,0.0,0.0,0.0,1.0,100.0,0.1,42,0,114,0

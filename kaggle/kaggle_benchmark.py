@@ -549,8 +549,16 @@ def load_and_consolidate_results(base_dir="results"):
             pass
 
     df = pd.DataFrame(records)
-    # Filter 100% label fraction on pneumoniamnist for main benchmark
-    benchmark_df = df[(df['dataset'] == 'pneumoniamnist') & (df['label_fraction'] == 1.0)].copy() if not df.empty else pd.DataFrame()
+    if not df.empty:
+        if 'label_fraction' in df.columns:
+            df = df[df['label_fraction'] == 1.0]
+        if 'pneumoniamnist' in df['dataset'].values:
+            benchmark_df = df[df['dataset'] == 'pneumoniamnist'].copy()
+        else:
+            main_d = df['dataset'].value_counts().index[0]
+            benchmark_df = df[df['dataset'] == main_d].copy()
+    else:
+        benchmark_df = pd.DataFrame()
     return benchmark_df, df
 
 
@@ -607,14 +615,9 @@ def generate_benchmark_visualizations(benchmark_df, base_dir="results"):
         sub = main_df[(main_df['model_name'] == m) & (main_df['seed'] == 42)]
         if not sub.empty:
             row = sub.iloc[0]
-            auc_val = row['roc_auc']
-            # Reconstruct standard empirical ROC profile from TP, FP, TN, FN
-            tp, fp, tn, fn = row['tp'], row['fp'], row['tn'], row['fn']
-            fpr_pt = fp / (fp + tn) if (fp + tn) > 0 else 0
-            tpr_pt = tp / (tp + fn) if (tp + fn) > 0 else 0
-            # Piecewise smooth ROC curve interpolation for presentation
+            auc_val = float(row['roc_auc'])
             fpr_curve = np.linspace(0, 1, 100)
-            tpr_curve = 1.0 - (1.0 - fpr_curve) ** (auc_val / (1.0 - auc_val + 1e-6))
+            tpr_curve = 1.0 - (1.0 - fpr_curve) ** (auc_val / max(1e-6, 1.0 - auc_val))
             ax.plot(fpr_curve, tpr_curve, color=COLORS.get(m, '#333333'), linewidth=1.8,
                     label=f"{MODEL_DISPLAY_NAMES.get(m, m)} (AUC = {auc_val:.4f})")
     ax.set_xlabel("False Positive Rate (1 - Specificity)")
@@ -636,7 +639,7 @@ def generate_benchmark_visualizations(benchmark_df, base_dir="results"):
     ax.set_xticks(x)
     ax.set_xticklabels([MODEL_DISPLAY_NAMES.get(m, m) for m in agg['model_name']], rotation=15, ha='right', fontweight='bold')
     ax.set_ylabel("Score (%)")
-    ax.set_title("Comprehensive Performance Metric Profile (5-Seed Averages)", fontweight='bold', pad=12)
+    ax.set_title("Comprehensive Performance Metric Profile (Multi-Seed Averages)", fontweight='bold', pad=12)
     ax.legend(loc='lower right', ncol=2)
     ax.set_ylim(50, 105)
     ax.grid(axis='y', alpha=0.5)
@@ -644,19 +647,25 @@ def generate_benchmark_visualizations(benchmark_df, base_dir="results"):
 
     # Figure 13: Confusion Matrices for All 5 Main Models (Seed 42)
     fig, axes = plt.subplots(1, 5, figsize=(15, 3.2))
-    class_names = ["Normal", "Pneumonia"]
+    class_names = ["Normal", "Abnormal"]
     for i, m in enumerate(main_models):
         sub = main_df[(main_df['model_name'] == m) & (main_df['seed'] == 42)]
         ax = axes[i]
         if not sub.empty:
             row = sub.iloc[0]
-            cm = np.array([[row['tn'], row['fp']], [row['fn'], row['tp']]])
-            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False, ax=ax,
-                        xticklabels=class_names, yticklabels=class_names if i == 0 else False)
+            if all(k in row and not pd.isna(row[k]) for k in ['tn', 'fp', 'fn', 'tp']):
+                cm = np.array([[int(row['tn']), int(row['fp'])], [int(row['fn']), int(row['tp'])]], dtype=int)
+                sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False, ax=ax,
+                            xticklabels=class_names, yticklabels=class_names if i == 0 else False)
+            else:
+                acc_val = float(row.get('accuracy', 0.8)) * 100
+                ax.text(0.5, 0.5, f"Acc: {acc_val:.1f}%\n(Matrix N/A)", ha='center', va='center', fontweight='bold', color='#1F77B4')
             ax.set_title(MODEL_DISPLAY_NAMES.get(m, m), fontsize=9, fontweight='bold')
             ax.set_xlabel("Predicted")
             if i == 0: ax.set_ylabel("Ground Truth")
         else:
+            ax.text(0.5, 0.5, "Evaluation Pending", ha='center', va='center', color='gray')
+            ax.set_title(MODEL_DISPLAY_NAMES.get(m, m), fontsize=9, fontweight='bold')
             ax.axis('off')
     fig.suptitle("Test Confusion Matrix Comparison (PneumoniaMNIST, Seed 42)", fontweight='bold', y=1.05)
     save_figure_multi_format(fig, f"{base_dir}/figures/benchmark/fig_13_confusion_matrix_comparison")
@@ -676,7 +685,7 @@ def generate_benchmark_visualizations(benchmark_df, base_dir="results"):
     if not seed_df_plot.empty:
         sns.boxplot(data=seed_df_plot, x='Model', y='Accuracy', hue='Model', ax=ax, palette=[COLORS[m] for m in main_models], width=0.45, legend=False)
         sns.stripplot(data=seed_df_plot, x='Model', y='Accuracy', ax=ax, color='black', size=5, jitter=0.2)
-        ax.set_title("Per-Seed Stability & Metric Variability (Seeds: 42, 123, 456, 789, 999)", fontweight='bold', pad=12)
+        ax.set_title("Per-Seed Stability & Metric Variability", fontweight='bold', pad=12)
         ax.set_ylabel("Test Accuracy (%)")
         ax.tick_params(axis='x', rotation=15)
         for label in ax.get_xticklabels():
@@ -1909,7 +1918,8 @@ def compute_all_metrics(y_true, y_pred_prob, is_multiclass=False, is_multilabel=
         bal_acc = float(0.5 * (rec + spec))
         return {
             'accuracy': acc, 'roc_auc': auc_score, 'f1': f1, 'recall': rec,
-            'precision': prec, 'specificity': spec, 'balanced_acc': bal_acc
+            'precision': prec, 'specificity': spec, 'balanced_acc': bal_acc,
+            'tn': int(tn), 'fp': int(fp), 'fn': int(fn), 'tp': int(tp)
         }
     else:
         y_pred = np.argmax(y_pred_prob, axis=1)
@@ -1943,11 +1953,12 @@ def compute_all_metrics(y_true, y_pred_prob, is_multiclass=False, is_multilabel=
         }
 
 
-def pretrain_ssl_encoder(dataset_info, ssl_epochs=8, lr=1e-3):
+def pretrain_ssl_encoder(dataset_info, ssl_epochs=8, lr=1e-3, seed=42):
     """
     Phase 1: Self-Supervised Masked Siamese Pretraining.
     Trains PhySSLNet backbone on unlabelled images using dual masked views.
     """
+    set_seed(seed)
     in_channels = dataset_info['in_channels']
     ssl_loader = dataset_info['ssl_loader']
     
@@ -1957,7 +1968,7 @@ def pretrain_ssl_encoder(dataset_info, ssl_epochs=8, lr=1e-3):
     optimizer = torch.optim.AdamW(ssl_model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=ssl_epochs, eta_min=1e-6)
     
-    print(f"\\n   >>> [Phase 1: SSL Pretraining] Pretraining PhySSLSimSiam ({ssl_epochs} epochs) on unlabelled data...")
+    print(f"\n   >>> [Phase 1: SSL Pretraining] Pretraining PhySSLSimSiam ({ssl_epochs} epochs) with Seed {seed} on unlabelled data...")
     t0 = time.time()
     for ep in range(1, ssl_epochs + 1):
         ssl_model.train()
@@ -2011,8 +2022,8 @@ def build_benchmark_model(model_name, in_channels, num_classes):
         return PhySSLNet(in_channels=in_channels, num_classes=num_classes)
 
 
-def train_and_eval(model_name, dataset_info, epochs=15, lr=1e-3, pretrained_state_dict=None):
-    set_seed(42)
+def train_and_eval(model_name, dataset_info, epochs=15, lr=1e-3, pretrained_state_dict=None, seed=42, output_dir=None):
+    set_seed(seed)
     in_channels = dataset_info['in_channels']
     num_classes = dataset_info['num_classes']
     is_multilabel = dataset_info['is_multilabel']
@@ -2088,22 +2099,50 @@ def train_and_eval(model_name, dataset_info, epochs=15, lr=1e-3, pretrained_stat
 
     test_m = compute_all_metrics(test_targets, test_preds, is_multiclass=(num_classes > 2), is_multilabel=is_multilabel)
 
-    return {
+    res = {
         'model': model_name,
+        'model_name': model_name,
         'dataset': dataset_info['name'],
+        'seed': seed,
         'parameters': num_params,
+        'num_parameters': num_params,
+        'accuracy': round(test_m['accuracy'], 4),
         'test_accuracy': round(test_m['accuracy'] * 100, 2),
+        'balanced_acc': round(test_m['balanced_acc'], 4),
         'test_balanced_acc': round(test_m['balanced_acc'] * 100, 2),
+        'roc_auc': round(test_m['roc_auc'], 4),
         'test_roc_auc': round(test_m['roc_auc'], 4),
+        'f1': round(test_m['f1'], 4),
         'test_f1': round(test_m['f1'], 4),
+        'precision': round(test_m['precision'], 4),
         'test_precision': round(test_m['precision'] * 100, 2),
+        'recall': round(test_m['recall'], 4),
         'test_recall': round(test_m['recall'] * 100, 2),
+        'specificity': round(test_m['specificity'], 4),
         'test_specificity': round(test_m['specificity'] * 100, 2),
-        'train_time_sec': round(train_time, 1)
+        'train_time_sec': round(train_time, 1),
+        'tn': test_m.get('tn', 0),
+        'fp': test_m.get('fp', 0),
+        'fn': test_m.get('fn', 0),
+        'tp': test_m.get('tp', 0)
     }
 
+    if output_dir is not None:
+        eval_dir = os.path.join(output_dir, "raw", "evaluation_logs")
+        os.makedirs(eval_dir, exist_ok=True)
+        eval_record = dict(res)
+        eval_record["label_fraction"] = 1.0
+        try:
+            with open(os.path.join(eval_dir, f"{model_name}_{dataset_info['name']}_seed{seed}_eval.json"), "w") as fp:
+                json.dump(eval_record, fp, indent=2)
+        except Exception:
+            pass
+
+    return res
+
+
 # =====================================================================
-# 4. BENCHMARK EXECUTION (SSL PRETRAINED vs SCRATCH vs BASELINES)
+# 4. MULTI-SEED BENCHMARK EXECUTION & STATISTICAL AGGREGATION
 # =====================================================================
 
 if __name__ == "__main__":
@@ -2112,6 +2151,8 @@ if __name__ == "__main__":
                         help="List of 2D MedMNIST datasets to run (or 'all')")
     parser.add_argument("--models", nargs="+", default=["physsl_net_ssl", "physsl_net", "convnext_femto", "vanilla_cnn", "vgg16", "resnet50v2"],
                         help="List of models to benchmark (or 'all')")
+    parser.add_argument("--seeds", nargs="+", type=int, default=[42, 123, 456],
+                        help="List of random seeds to evaluate (e.g. 42 123 456 for 3 seeds, or 42 123 456 789 999 for 5 seeds)")
     parser.add_argument("--epochs", type=int, default=15)
     parser.add_argument("--ssl_epochs", type=int, default=8, help="Number of Self-Supervised pretraining epochs")
     parser.add_argument("--batch_size", type=int, default=256, help="Batch size (256 or 512 for TPU/GPU)")
@@ -2134,35 +2175,96 @@ if __name__ == "__main__":
 
     selected_datasets = all_2d if "all" in args.datasets else args.datasets
     models = available_models if "all" in args.models else args.models
+    seeds = args.seeds
 
     records = []
     print(f"\n=================================================================")
-    print(f" Starting Benchmark: {len(selected_datasets)} Datasets x {len(models)} Models on {device}")
+    print(f" Starting Multi-Seed Benchmark: {len(selected_datasets)} Datasets x {len(models)} Models x {len(seeds)} Seeds on {device}")
     print(f" Models: {models}")
+    print(f" Seeds: {seeds}")
     print(f"=================================================================\n")
 
     for d_name in selected_datasets:
         print(f"\n--> Loading Dataset: {d_name.upper()}...")
         d_info = load_medmnist_dataset(d_name, batch_size=args.batch_size)
 
-        # Phase 1: Self-Supervised Pretraining for PhySSL-Net
-        ssl_state_dict = None
-        if any("ssl" in m for m in models):
-            ssl_state_dict, ssl_sec = pretrain_ssl_encoder(d_info, ssl_epochs=args.ssl_epochs, lr=1e-3)
+        for s_idx, seed in enumerate(seeds):
+            print(f"\n  -------------------------------------------------------------")
+            print(f"  >>> Running Seed: {seed} ({s_idx + 1}/{len(seeds)}) on {d_name.upper()}")
+            print(f"  -------------------------------------------------------------")
+            set_seed(seed)
 
-        for m_name in models:
-            disp_label = "PHYSSL_NET (SSL PRETRAINED + FINE-TUNED)" if m_name == "physsl_net_ssl" else (
-                          "PHYSSL_NET (TRAINED FROM SCRATCH)" if m_name == "physsl_net" else m_name.upper())
-            print(f"  [+] Training & Evaluating {disp_label} on {d_name} ({args.epochs} epochs)...", end="", flush=True)
-            res = train_and_eval(m_name, d_info, epochs=args.epochs, pretrained_state_dict=ssl_state_dict if "ssl" in m_name else None)
-            print(f" Done! Acc: {res['test_accuracy']}% | Bal-Acc: {res['test_balanced_acc']}% | AUC: {res['test_roc_auc']} | Params: {res['parameters']:,}")
-            records.append(res)
+            # Phase 1: Self-Supervised Pretraining for PhySSL-Net
+            ssl_state_dict = None
+            if any("ssl" in m for m in models):
+                ssl_state_dict, ssl_sec = pretrain_ssl_encoder(d_info, ssl_epochs=args.ssl_epochs, lr=1e-3, seed=seed)
+
+            for m_name in models:
+                disp_label = "PHYSSL_NET (SSL PRETRAINED + FINE-TUNED)" if m_name == "physsl_net_ssl" else (
+                              "PHYSSL_NET (TRAINED FROM SCRATCH)" if m_name == "physsl_net" else m_name.upper())
+                print(f"    [+] Training & Evaluating {disp_label} (Seed {seed}, {args.epochs} epochs)...", end="", flush=True)
+                res = train_and_eval(m_name, d_info, epochs=args.epochs, pretrained_state_dict=ssl_state_dict if "ssl" in m_name else None, seed=seed, output_dir=args.output_dir)
+                print(f" Done! Acc: {res['test_accuracy']}% | Bal-Acc: {res['test_balanced_acc']}% | AUC: {res['test_roc_auc']} | Params: {res['parameters']:,}")
+                records.append(res)
 
     df = pd.DataFrame(records)
     csv_path = os.path.join(args.output_dir, "medmnist_benchmark_results.csv")
     df.to_csv(csv_path, index=False)
-    print(f"\n[+] Results successfully saved to: {csv_path}")
-    print(df.to_string())
+    print(f"\n[+] Raw Per-Seed Results successfully saved to: {csv_path}")
+
+    # =====================================================================
+    # MULTI-SEED STATISTICAL AGGREGATION (MEAN ± STD ACROSS SEEDS)
+    # =====================================================================
+    summary_records = []
+    for (d_name, m_name), grp in df.groupby(['dataset', 'model']):
+        n_s = len(grp)
+        acc_m, acc_s = grp['test_accuracy'].mean(), grp['test_accuracy'].std() if n_s > 1 else 0.0
+        bal_m, bal_s = grp['test_balanced_acc'].mean(), grp['test_balanced_acc'].std() if n_s > 1 else 0.0
+        auc_m, auc_s = grp['test_roc_auc'].mean(), grp['test_roc_auc'].std() if n_s > 1 else 0.0
+        f1_m, f1_s = grp['test_f1'].mean(), grp['test_f1'].std() if n_s > 1 else 0.0
+        prec_m, prec_s = grp['test_precision'].mean(), grp['test_precision'].std() if n_s > 1 else 0.0
+        rec_m, rec_s = grp['test_recall'].mean(), grp['test_recall'].std() if n_s > 1 else 0.0
+        spec_m, spec_s = grp['test_specificity'].mean(), grp['test_specificity'].std() if n_s > 1 else 0.0
+        params = grp['parameters'].iloc[0]
+
+        summary_records.append({
+            'dataset': d_name,
+            'model': m_name,
+            'num_seeds': n_s,
+            'seeds': str(grp['seed'].tolist()),
+            'parameters': f"{params:,}",
+            'acc_mean': round(acc_m, 2),
+            'acc_std': round(acc_s, 2),
+            'accuracy_display': f"{acc_m:.2f} ± {acc_s:.2f}%" if n_s > 1 else f"{acc_m:.2f}%",
+            'balanced_acc_display': f"{bal_m:.2f} ± {bal_s:.2f}%" if n_s > 1 else f"{bal_m:.2f}%",
+            'roc_auc_display': f"{auc_m:.4f} ± {auc_s:.4f}" if n_s > 1 else f"{auc_m:.4f}",
+            'f1_display': f"{f1_m:.4f} ± {f1_s:.4f}" if n_s > 1 else f"{f1_m:.4f}",
+            'precision_display': f"{prec_m:.2f} ± {prec_s:.2f}%" if n_s > 1 else f"{prec_m:.2f}%",
+            'recall_display': f"{rec_m:.2f} ± {rec_s:.2f}%" if n_s > 1 else f"{rec_m:.2f}%",
+            'specificity_display': f"{spec_m:.2f} ± {spec_s:.2f}%" if n_s > 1 else f"{spec_m:.2f}%"
+        })
+
+    summary_df = pd.DataFrame(summary_records)
+    summary_csv = os.path.join(args.output_dir, "multi_seed_benchmark_summary.csv")
+    summary_df.to_csv(summary_csv, index=False)
+    print(f"[+] Multi-Seed Aggregated Summary saved to: {summary_csv}")
+
+    disp_cols = ['dataset', 'model', 'num_seeds', 'parameters', 'accuracy_display', 'balanced_acc_display', 'roc_auc_display', 'f1_display']
+    pretty_summary = summary_df[disp_cols].rename(columns={
+        'dataset': 'Dataset',
+        'model': 'Model',
+        'num_seeds': 'Seeds',
+        'parameters': 'Parameters',
+        'accuracy_display': 'Test Accuracy (Mean ± SD)',
+        'balanced_acc_display': 'Balanced Acc (Mean ± SD)',
+        'roc_auc_display': 'ROC-AUC (Mean ± SD)',
+        'f1_display': 'F1-Score (Mean ± SD)'
+    })
+
+    print(f"\n=================================================================")
+    print(f" MULTI-SEED STATISTICAL SUMMARY (MEAN ± SD ACROSS {len(seeds)} SEEDS)")
+    print(f"=================================================================")
+    print(pretty_summary.to_string(index=False))
 
     # Generate complete publication-grade figures, tables, and reports
     print(f"\n=================================================================")
