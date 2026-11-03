@@ -1,0 +1,3 @@
+model,dataset,parameters,test_accuracy,test_balanced_acc,test_roc_auc,test_f1,test_precision,test_recall,test_specificity,train_time_sec
+physsl_net_ssl,breastmnist,46318,71.79,54.39,0.651,0.8268,75.0,92.11,16.67,0.3
+vanilla_cnn,breastmnist,65314,26.92,50.0,0.6404,0.0,0.0,0.0,100.0,0.1

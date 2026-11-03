@@ -596,11 +596,14 @@ def generate_benchmark_visualizations(benchmark_df, base_dir="results"):
             })
     seed_df_plot = pd.DataFrame(seed_data)
     if not seed_df_plot.empty:
-        sns.boxplot(data=seed_df_plot, x='Model', y='Accuracy', ax=ax, palette=[COLORS[m] for m in main_models], width=0.45)
+        sns.boxplot(data=seed_df_plot, x='Model', y='Accuracy', hue='Model', ax=ax, palette=[COLORS[m] for m in main_models], width=0.45, legend=False)
         sns.stripplot(data=seed_df_plot, x='Model', y='Accuracy', ax=ax, color='black', size=5, jitter=0.2)
         ax.set_title("Per-Seed Stability & Metric Variability (Seeds: 42, 123, 456, 789, 999)", fontweight='bold', pad=12)
         ax.set_ylabel("Test Accuracy (%)")
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=15, ha='right', fontweight='bold')
+        ax.tick_params(axis='x', rotation=15)
+        for label in ax.get_xticklabels():
+            label.set_horizontalalignment('right')
+            label.set_fontweight('bold')
         ax.grid(axis='y', alpha=0.5)
         save_figure_multi_format(fig, f"{base_dir}/figures/benchmark/fig_14_seed_variability")
 
@@ -987,7 +990,7 @@ def export_all_research_tables(base_dir="results"):
 # ==============================================================================
 def generate_reports(base_dir="results"):
     """Generates visualization_index.md and results_summary.md."""
-    index_md = """# PhySSL-Net Research Visualization Index & Scientific Catalog
+    index_md = r"""# PhySSL-Net Research Visualization Index & Scientific Catalog
 **Project:** Physics- and Structure-Informed Self-Supervised Learning for Medical Image Classification  
 **Group:** `DTU/CSE/BTP/GP053` (AY 2026–27) | **Guide:** Dr. Ravin Ahuja  
 
